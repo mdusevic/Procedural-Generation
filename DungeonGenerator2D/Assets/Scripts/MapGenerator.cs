@@ -14,7 +14,7 @@ public class MapGenerator : MonoBehaviour
     public Tilemap tilemap;
 
     [SerializeField]
-    [Tooltip("Sets the size of the map")]
+    [HideInInspector]
     public BoundsInt mapSize;
 
     #endregion
@@ -82,6 +82,9 @@ public class MapGenerator : MonoBehaviour
 
     public void ResetMap()
     {
-        tilemap.ClearAllTiles();
+        if (tilemap != null)
+        {
+            tilemap.ClearAllTiles();
+        }
     }
 }

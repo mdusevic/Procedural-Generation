@@ -46,7 +46,7 @@ public class CustomEditorData : ScriptableObject
     #endregion
 
     [OnOpenAssetAttribute(1)]
-    public static bool step1(int instanceID, int line)
+    public static bool CreateData(int instanceID, int line)
     {
         Object obj = UnityEditor.EditorUtility.InstanceIDToObject(instanceID);
         System.Type type = obj.GetType();
@@ -54,12 +54,11 @@ public class CustomEditorData : ScriptableObject
         if (typeof(CustomEditorData) == type)
         {
             CustomEditor.Init();
-
             CustomEditor.LoadEditorData((CustomEditorData)obj);
 
             return true;
         }
-        return false; // we did not handle the open
-    }
 
+        return false;
+    }
 }

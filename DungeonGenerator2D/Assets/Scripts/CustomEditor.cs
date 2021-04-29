@@ -3,8 +3,9 @@ using UnityEngine;
 
 public class CustomEditor : EditorWindow
 {
-    private static CustomEditorData m_data;
+    public GameObject managerPrefab;
 
+    private static CustomEditorData m_data;
     public static CustomEditor m_window;
 
     // Adds menu item to the window
@@ -30,29 +31,23 @@ public class CustomEditor : EditorWindow
             return;
         }
 
-        GUILayout.Label("Base Settings", EditorStyles.boldLabel);
-
-        m_data.m_SceneMapGenObject = (GameObject)EditorGUILayout.ObjectField(new GUIContent("Map Generation Manager Object", "The object in scene that will contain the MapGeneration script."), m_data.m_SceneMapGenObject, typeof(GameObject), true);
-
-        m_data.m_MapGenScript = (MapGenerator)EditorGUILayout.ObjectField(new GUIContent("Map Generation Script", "MapGeneration script."), m_data.m_MapGenScript, typeof(MapGenerator), true);
-
-        if (m_data.m_SceneMapGenObject != null && !m_data.m_setupComplete)
+        if (!m_data.m_setupComplete)
         {
-            // Button to setup map generation script
-            if (GUILayout.Button(new GUIContent("Setup", "Adds scripts to in scene object to run generation.")))
+            GUILayout.Label("Map Generation Manager Prefab", EditorStyles.boldLabel);
+            managerPrefab = (GameObject)EditorGUILayout.ObjectField(new GUIContent("Map Generation Manager Prefab", "Prefab that contains MapGenerator script"), managerPrefab, typeof(GameObject), true);
+
+            if (managerPrefab != null)
             {
-                foreach (var component in m_data.m_SceneMapGenObject.GetComponents<Component>())
+                // Button to create generation manager in scene
+                if (GUILayout.Button(new GUIContent("Setup", "Adds scripts to in scene object to run generation.")))
                 {
-                    if (!(component is Transform) && !(component is MapGenerator))
-                    {
-                        Destroy(component);
+                    GameObject GenManagerInstance = Instantiate(managerPrefab);
+                    m_data.m_SceneMapGenObject = GenManagerInstance;
 
-                        //m_data.m_SceneMapGenObject.AddComponent<MapGenerator>();
-                        //m_data.m_MapGenScript = m_data.m_SceneMapGenObject.GetComponent<MapGenerator>();
-                    }
+                    m_data.m_MapGenScript = m_data.m_SceneMapGenObject.GetComponent<MapGenerator>();
+
+                    m_data.m_setupComplete = true;
                 }
-
-                m_data.m_setupComplete = true;
             }
         }
 
@@ -65,8 +60,6 @@ public class CustomEditor : EditorWindow
             // Button to trigger room generation
             if (GUILayout.Button(new GUIContent("Generate Void Space", "Randomly places tiles to create void space.")))
             {
-                Debug.Log("GENERATING VOID SPACE");
-
                 m_data.m_voidGenTriggered = true;
                 m_data.m_MapGenScript.CreateVoidTiles();
             }
@@ -76,8 +69,6 @@ public class CustomEditor : EditorWindow
                 // Button to trigger room generation
                 if (GUILayout.Button(new GUIContent("Generate Rooms", "Randomly places rooms on the map.")))
                 {
-                    Debug.Log("GENERATING ROOMS");
-
                     m_data.m_roomGenTriggered = true;
                     m_data.m_MapGenScript.GenerateRooms();
                 }
@@ -88,8 +79,6 @@ public class CustomEditor : EditorWindow
                 // Button to trigger corridor generation
                 if (GUILayout.Button(new GUIContent("Generate Corridors", "Randomly places corridor on the map. NOTE: Generate after rooms have been created.")))
                 {
-                    Debug.Log("GENERATING CORRIDORS");
-
                     m_data.m_MapGenScript.GenerateCorridors();
                 }
             }
@@ -102,11 +91,22 @@ public class CustomEditor : EditorWindow
             // Button to reset map
             if (GUILayout.Button(new GUIContent("Reset", "Removes all components of map")))
             {
-                Debug.Log("RESET MAP");
-
                 m_data.m_voidGenTriggered = false;
                 m_data.m_roomGenTriggered = false;
                 m_data.m_MapGenScript.ResetMap();
+            }
+
+            // Button to delete manager in scene
+            if (GUILayout.Button(new GUIContent("Delete Manager", "Deletes the map generator manager in scene.")))
+            {
+                m_data.m_MapGenScript.ResetMap();
+                m_data.m_setupComplete = false;
+                m_data.m_voidGenTriggered = false;
+                m_data.m_roomGenTriggered = false;
+                m_data.m_mapLimits = new Vector2(0, 0);
+                DestroyImmediate(m_data.m_SceneMapGenObject);
+                m_data.m_SceneMapGenObject = null;
+                m_data.m_MapGenScript = null;
             }
 
             m_data.m_optionalEnabled = EditorGUILayout.BeginToggleGroup("Optional Settings", m_data.m_optionalEnabled);
