@@ -67,7 +67,18 @@ public class MapGenerator : MonoBehaviour
 
     public void GenerateRooms()
     {
+        //if (rooms != null)
+        //{
+        //    for (int x = 0; x < mapSize.x; x++)
+        //    {
+        //        for (int y = 0; y < mapSize.y; y++)
+        //        {
+        //            int roomID = Random.Range(0, rooms.Length);
 
+        //            tilemap.SetTile(new Vector3Int(-x + mapSize.x / 2, -y + mapSize.y / 2, 0), rooms[roomID]);
+        //        }
+        //    }
+        //}
     }
 
     public void GenerateCorridors()
