@@ -11,11 +11,11 @@ public class MapGenerator : MonoBehaviour
 
     [SerializeField]
     [Tooltip("Tilemap used to spawn tiles and map")]
-    private Tilemap tilemap;
+    public Tilemap tilemap;
 
     [SerializeField]
     [Tooltip("Sets the size of the map")]
-    private BoundsInt mapSize;
+    public BoundsInt mapSize;
 
     #endregion
 
@@ -24,9 +24,9 @@ public class MapGenerator : MonoBehaviour
     [Space(4)]
     [Header("Tiles")]
 
-    [SerializeField]
     [Tooltip("Textures used to fill the map's void spaces")]
-    private Tile[] voidTiles;
+    [SerializeField]
+    public Tile[] voidTiles;
 
     #endregion
 
@@ -49,15 +49,18 @@ public class MapGenerator : MonoBehaviour
 
     public void CreateVoidTiles()
     {
-        ResetMap();
-
-        for (int x = 0; x < mapSize.x; x++)
+        if (voidTiles != null)
         {
-            for (int y = 0; y < mapSize.y; y++)
-            {
-                int tileID = Random.Range(0, voidTiles.Length);
+            ResetMap();
 
-                tilemap.SetTile(new Vector3Int(-x + mapSize.x / 2, -y + mapSize.y / 2, 0), voidTiles[tileID]);
+            for (int x = 0; x < mapSize.x; x++)
+            {
+                for (int y = 0; y < mapSize.y; y++)
+                {
+                    int tileID = Random.Range(0, voidTiles.Length);
+
+                    tilemap.SetTile(new Vector3Int(-x + mapSize.x / 2, -y + mapSize.y / 2, 0), voidTiles[tileID]);
+                }
             }
         }
     }
