@@ -9,6 +9,8 @@ public class MapGenerator : MonoBehaviour
 
     [Header("Base Settings")]
 
+    public int ID;
+
     [SerializeField]
     [Tooltip("Tilemap used to spawn tiles and map")]
     public Tilemap tilemap;
@@ -38,6 +40,10 @@ public class MapGenerator : MonoBehaviour
     [SerializeField]
     [Tooltip("All room prefabs to be spawned")]
     private GameObject[] rooms;
+
+    [SerializeField]
+    [Tooltip("Maximum number of rooms that can be spawned")]
+    private int totalRoomLimit = 10;
 
     #endregion
 

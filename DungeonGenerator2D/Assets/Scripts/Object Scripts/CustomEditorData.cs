@@ -15,33 +15,28 @@ public class CustomEditorData : ScriptableObject
 
     [Header("Generation Data")]
 
-    [HideInInspector]
+    //[HideInInspector]
     [SerializeField]
     public bool m_optionalEnabled;
 
-    [HideInInspector]
+    //[HideInInspector]
     [SerializeField]
     public bool m_voidGenTriggered = false;
 
-    [HideInInspector]
+    //[HideInInspector]
     [SerializeField]
     public bool m_roomGenTriggered = false;
 
-    [HideInInspector]
+    //[HideInInspector]
     [SerializeField]
     public bool m_setupComplete = false;
 
-    [HideInInspector]
+    //[HideInInspector]
     [SerializeField]
     public Vector2 m_mapLimits;
 
-    [HideInInspector]
     [SerializeField]
-    public GameObject m_SceneMapGenObject;
-
-    [HideInInspector]
-    [SerializeField]
-    public MapGenerator m_MapGenScript;
+    public int m_MapGenObjID;
 
     #endregion
 
