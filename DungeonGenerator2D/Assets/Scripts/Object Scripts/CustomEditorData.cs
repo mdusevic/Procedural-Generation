@@ -15,31 +15,33 @@ public class CustomEditorData : ScriptableObject
 
     [Header("Generation Data")]
 
-    //[HideInInspector]
+    [HideInInspector]
     [SerializeField]
     public bool m_optionalEnabled;
 
-    //[HideInInspector]
+    [HideInInspector]
     [SerializeField]
     public bool m_voidGenTriggered = false;
 
-    //[HideInInspector]
+    [HideInInspector]
     [SerializeField]
     public bool m_roomGenTriggered = false;
 
-    //[HideInInspector]
+    [HideInInspector]
     [SerializeField]
     public bool m_setupComplete = false;
 
-    //[HideInInspector]
+    [HideInInspector]
     [SerializeField]
     public Vector2 m_mapLimits;
 
+    [Tooltip("ID assigned to manager object in scene")]
     [SerializeField]
     public int m_MapGenObjID;
 
     #endregion
 
+    // When scriptable object is opened, data is created and sent to editor
     [OnOpenAssetAttribute(1)]
     public static bool CreateData(int instanceID, int line)
     {

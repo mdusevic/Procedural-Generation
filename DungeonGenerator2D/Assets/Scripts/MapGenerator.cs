@@ -39,11 +39,13 @@ public class MapGenerator : MonoBehaviour
 
     [SerializeField]
     [Tooltip("All room prefabs to be spawned")]
-    private GameObject[] rooms;
+    private Room[] rooms;
 
     [SerializeField]
     [Tooltip("Maximum number of rooms that can be spawned")]
     private int totalRoomLimit = 10;
+
+    private int[] roomRotAngles = { 0, 90, 180, 270 };
 
     #endregion
 
@@ -73,18 +75,52 @@ public class MapGenerator : MonoBehaviour
 
     public void GenerateRooms()
     {
-        //if (rooms != null)
-        //{
-        //    for (int x = 0; x < mapSize.x; x++)
-        //    {
-        //        for (int y = 0; y < mapSize.y; y++)
-        //        {
-        //            int roomID = Random.Range(0, rooms.Length);
+        if (rooms != null)
+        {
+            int xSpawnSize;
+            int ySpawnSize;
 
-        //            tilemap.SetTile(new Vector3Int(-x + mapSize.x / 2, -y + mapSize.y / 2, 0), rooms[roomID]);
-        //        }
-        //    }
-        //}
+            for (int i = 0; i < totalRoomLimit; i++)
+            {
+                int roomID = Random.Range(0, rooms.Length);
+                Room roomToSpawn = rooms[roomID];
+
+                Vector3Int roomSize = roomToSpawn.gameObject.GetComponent<Tilemap>().size;
+
+                if (roomToSpawn.m_spawnedRooms != roomToSpawn.m_roomSpawnLimit)
+                {
+                    roomToSpawn.m_spawnedRooms++;
+
+                    //xSpawnSize = Random.Range((-mapSize.x / 2) + roomSize.x / 2, (mapSize.x / 2) - roomSize.x / 2);
+                    //ySpawnSize = Random.Range((-mapSize.y / 2) + roomSize.y / 2, (mapSize.y / 2) - roomSize.y / 2);
+
+                    xSpawnSize = (mapSize.x / 2) - roomSize.x / 2;
+                    ySpawnSize = (mapSize.y / 2) - roomSize.y / 2;
+
+                    int roomRot = 0;
+
+                    if (roomToSpawn.m_enableRoomRot)
+                    {
+                        int rot = Random.Range(0, roomRotAngles.Length);
+                        roomRot = roomRotAngles[rot];
+
+                        if (roomRot == 90 || roomRot == 270)
+                        {
+                            xSpawnSize = (mapSize.x / 2) - roomSize.y / 2;
+                            ySpawnSize = (mapSize.y / 2) - roomSize.x / 2;
+
+                            //xSpawnSize = Random.Range((-mapSize.x / 2) + roomSize.y / 2, (mapSize.x / 2) - roomSize.y / 2);
+                            //ySpawnSize = Random.Range((-mapSize.y / 2) + roomSize.x / 2, (mapSize.y / 2) - roomSize.x / 2);
+                        }
+                    }
+
+                    Vector2 roomPos = new Vector2Int(xSpawnSize, ySpawnSize);
+
+                    GameObject room = Instantiate(roomToSpawn.gameObject, roomPos, Quaternion.Euler(0, 0, roomRot));
+                    room.transform.parent = tilemap.transform.parent; 
+                }
+            }
+        }
     }
 
     public void GenerateCorridors()
@@ -102,6 +138,12 @@ public class MapGenerator : MonoBehaviour
         if (tilemap != null)
         {
             tilemap.ClearAllTiles();
+
+            foreach (var room in FindObjectsOfType<Room>())
+            {
+                room.GetComponent<Room>().m_spawnedRooms = 0;
+                DestroyImmediate(room.gameObject);
+            }
         }
     }
 }

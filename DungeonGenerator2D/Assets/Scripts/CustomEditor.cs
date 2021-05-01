@@ -1,17 +1,19 @@
 ﻿using UnityEditor;
 using UnityEngine;
-using System.IO;
 
 public class CustomEditor : EditorWindow
 {
-    public GameObject managerPrefab;
+    #region Fields
 
-    private GameObject SceneMapGenObj;
+    private GameObject m_MapGenPrefab;
+    private GameObject m_SceneMapGenObj;
 
-    private MapGenerator MapGenScript;
+    private MapGenerator m_MapGenScript;
 
     private static CustomEditorData m_data;
     public static CustomEditor m_window;
+
+    #endregion
 
     // Adds menu item to the window
     [MenuItem("Window/Dungeon Generator")]
@@ -23,66 +25,110 @@ public class CustomEditor : EditorWindow
         m_window.Show();
     }
 
+    // Loads the information from the opened data object
     public static void LoadEditorData(CustomEditorData a_data)
     {
         m_data = a_data;
     }
 
+    // Creates the manager in scene if none exists 
+    private void CreateManager()
+    {
+        // Creates instance of prefab in scene
+        GameObject GenManagerInstance = Instantiate(m_MapGenPrefab);
+        
+        // Links object to editor
+        m_SceneMapGenObj = GenManagerInstance;
+        m_MapGenScript = m_SceneMapGenObj.GetComponent<MapGenerator>();
+
+        // Creates a unique id to link the object again when loaded
+        int id = 0;
+
+        // Loops through all objects in scene to create the highest ID available
+        foreach (var obj in FindObjectsOfType<MapGenerator>())
+        {
+            if (obj.ID > id)
+            {
+                id = obj.ID;
+            }
+        }
+
+        id++;
+
+        // Assigns ID to object and saves it
+        m_MapGenScript.ID = id;
+        m_data.m_MapGenObjID = id;
+
+        // Sets setup as completed
+        m_data.m_setupComplete = true;
+    }
+
+    // Finds and connects the in scene manager to the editor
+    private void LoadManager()
+    {
+        // Loops though all objects in scene with assigned script
+        foreach (var obj in FindObjectsOfType<MapGenerator>())
+        {
+            // If the object in scene has the same ID as the saved data
+            if (obj.ID == m_data.m_MapGenObjID)
+            {
+                // Sets editor variables to connect it with the object
+                m_MapGenScript = obj;
+                m_SceneMapGenObj = obj.gameObject;
+            }
+        }
+    }
+
+    // Deletes the scene manager
+    private void DeleteManager()
+    {
+        // Sets all variables back to their defaults, resets the map and destroys manager object in scene
+        m_MapGenScript.ResetMap();
+        m_data.m_setupComplete = false;
+        m_data.m_voidGenTriggered = false;
+        m_data.m_roomGenTriggered = false;
+        m_data.m_mapLimits = new Vector2(0, 0);
+        DestroyImmediate(m_SceneMapGenObj);
+        m_data.m_MapGenObjID = -1;
+        m_MapGenScript = null;
+    }
+
     private void OnGUI()
     {
+        // If no data exists
         if (m_data == null)
         {
             return;
         }
 
+        // If setup hasn't been completed
         if (!m_data.m_setupComplete)
         {
+            // UI to create a new manager in scene
             GUILayout.Label("Map Generation Manager Prefab", EditorStyles.boldLabel);
-            managerPrefab = (GameObject)EditorGUILayout.ObjectField(new GUIContent("Map Generation Manager Prefab", "Prefab that contains MapGenerator script"), managerPrefab, typeof(GameObject), true);
+            m_MapGenPrefab = (GameObject)EditorGUILayout.ObjectField(new GUIContent("Map Generation Manager Prefab", "Prefab that contains MapGenerator script"), m_MapGenPrefab, typeof(GameObject), true);
 
-            if (managerPrefab != null)
+            // When a prefab to instantiate has been given
+            if (m_MapGenPrefab != null)
             {
                 // Button to create generation manager in scene
-                if (GUILayout.Button(new GUIContent("Setup", "Adds scripts to in scene object to run generation.")))
+                if (GUILayout.Button(new GUIContent("Setup", "Creates manager in scene")))
                 {
-                    GameObject GenManagerInstance = Instantiate(managerPrefab);
-                    SceneMapGenObj = GenManagerInstance;
-
-                    MapGenScript = SceneMapGenObj.GetComponent<MapGenerator>();
-
-                    int id = 0;
-
-                    foreach (var obj in FindObjectsOfType<MapGenerator>())
-                    {
-                        if (obj.ID > id)
-                        {
-                            id = obj.ID;
-                        }
-                    }
-
-                    id++;
-
-                    MapGenScript.ID = id;
-                    m_data.m_MapGenObjID = id;
-
-                    m_data.m_setupComplete = true;
+                    // Calls function to create manager in scene
+                    CreateManager();
                 }
             }
         }
 
-        if (m_data.m_setupComplete && MapGenScript == null)
+        // If setup has been completed but no object has been connected
+        if (m_data.m_setupComplete && m_MapGenScript == null)
         {
-            foreach (var obj in FindObjectsOfType<MapGenerator>())
-            {
-                if (obj.ID == m_data.m_MapGenObjID)
-                {
-                    MapGenScript = obj;
-                    SceneMapGenObj = obj.gameObject;
-                }
-            }
+            // Calls the function to find and load the manager in scene
+            LoadManager();
         }
 
-        if (m_data.m_setupComplete && MapGenScript != null)
+        // If setup has been completed and object has been linked to editor
+        if (m_data.m_setupComplete && m_MapGenScript != null)
         {
             GUILayout.Label("Generation", EditorStyles.boldLabel);
 
@@ -92,7 +138,7 @@ public class CustomEditor : EditorWindow
             if (GUILayout.Button(new GUIContent("Generate Void Space", "Randomly places tiles to create void space.")))
             {
                 m_data.m_voidGenTriggered = true;
-                MapGenScript.CreateVoidTiles();
+                m_MapGenScript.CreateVoidTiles();
             }
 
             if (m_data.m_voidGenTriggered)
@@ -101,7 +147,7 @@ public class CustomEditor : EditorWindow
                 if (GUILayout.Button(new GUIContent("Generate Rooms", "Randomly places rooms on the map.")))
                 {
                     m_data.m_roomGenTriggered = true;
-                    MapGenScript.GenerateRooms();
+                    m_MapGenScript.GenerateRooms();
                 }
             }
 
@@ -110,40 +156,35 @@ public class CustomEditor : EditorWindow
                 // Button to trigger corridor generation
                 if (GUILayout.Button(new GUIContent("Generate Corridors", "Randomly places corridor on the map. NOTE: Generate after rooms have been created.")))
                 {
-                    MapGenScript.GenerateCorridors();
+                    m_MapGenScript.GenerateCorridors();
                 }
             }
 
             GUILayout.EndHorizontal();
 
+            // UI to edit the size of the map
             m_data.m_mapLimits = EditorGUILayout.Vector2Field(new GUIContent("Map Limits", "Changes the size of the generated map"), m_data.m_mapLimits);
-            MapGenScript.SetMapSize(m_data.m_mapLimits);
+            m_MapGenScript.SetMapSize(m_data.m_mapLimits);
 
             // Button to reset map
             if (GUILayout.Button(new GUIContent("Reset", "Removes all components of map")))
             {
                 m_data.m_voidGenTriggered = false;
                 m_data.m_roomGenTriggered = false;
-                MapGenScript.ResetMap();
+                m_MapGenScript.ResetMap();
             }
 
             // Button to delete manager in scene
             if (GUILayout.Button(new GUIContent("Delete Manager", "Deletes the map generator manager in scene.")))
             {
-                MapGenScript.ResetMap();
-                m_data.m_setupComplete = false;
-                m_data.m_voidGenTriggered = false;
-                m_data.m_roomGenTriggered = false;
-                m_data.m_mapLimits = new Vector2(0, 0);
-                DestroyImmediate(SceneMapGenObj);
-                m_data.m_MapGenObjID = -1;
-                MapGenScript = null;
+                DeleteManager();
             }
 
             m_data.m_optionalEnabled = EditorGUILayout.BeginToggleGroup("Optional Settings", m_data.m_optionalEnabled);
             EditorGUILayout.EndToggleGroup();
         }
 
+        // Saves data on UI changes
         if (GUI.changed)
         {
             EditorUtility.SetDirty(m_data);

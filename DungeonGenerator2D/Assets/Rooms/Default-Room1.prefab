@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 3713763647912418288}
   - component: {fileID: 3713763647912418286}
   - component: {fileID: 3713763647912418289}
-  - component: {fileID: -5229357332713026811}
   - component: {fileID: -5688585926308239911}
   m_Layer: 0
   m_Name: Default-Room1
@@ -504,22 +503,6 @@ TilemapRenderer:
   m_Mode: 0
   m_DetectChunkCullingBounds: 0
   m_MaskInteraction: 0
---- !u!19719996 &-5229357332713026811
-TilemapCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3713763647912418291}
-  m_Enabled: 1
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IsTrigger: 0
-  m_UsedByEffector: 0
-  m_UsedByComposite: 1
-  m_Offset: {x: 0, y: 0}
-  m_MaximumTileChangeCount: 1000
-  m_ExtrusionFactor: 0.00001
 --- !u!114 &-5688585926308239911
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -532,4 +515,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ddb2776efe9adbb48af7101104990a62, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_roomSpawnLimit: 1
+  m_roomSpawnLimit: 10
+  m_enableRoomRot: 0
+  m_spawnedRooms: 0
