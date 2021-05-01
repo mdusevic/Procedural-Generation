@@ -89,13 +89,8 @@ public class MapGenerator : MonoBehaviour
 
                 if (roomToSpawn.m_spawnedRooms != roomToSpawn.m_roomSpawnLimit)
                 {
-                    roomToSpawn.m_spawnedRooms++;
-
-                    //xSpawnSize = Random.Range((-mapSize.x / 2) + roomSize.x / 2, (mapSize.x / 2) - roomSize.x / 2);
-                    //ySpawnSize = Random.Range((-mapSize.y / 2) + roomSize.y / 2, (mapSize.y / 2) - roomSize.y / 2);
-
-                    xSpawnSize = (mapSize.x / 2) - roomSize.x / 2;
-                    ySpawnSize = (mapSize.y / 2) - roomSize.y / 2;
+                    xSpawnSize = Random.Range(((-mapSize.x / 2) + roomSize.x / 2) + 1, ((mapSize.x / 2) - roomSize.x / 2) + 1);
+                    ySpawnSize = Random.Range(((-mapSize.y / 2) + roomSize.y / 2) + 1, ((mapSize.y / 2) - roomSize.y / 2) + 1);
 
                     int roomRot = 0;
 
@@ -106,18 +101,25 @@ public class MapGenerator : MonoBehaviour
 
                         if (roomRot == 90 || roomRot == 270)
                         {
-                            xSpawnSize = (mapSize.x / 2) - roomSize.y / 2;
-                            ySpawnSize = (mapSize.y / 2) - roomSize.x / 2;
-
-                            //xSpawnSize = Random.Range((-mapSize.x / 2) + roomSize.y / 2, (mapSize.x / 2) - roomSize.y / 2);
-                            //ySpawnSize = Random.Range((-mapSize.y / 2) + roomSize.x / 2, (mapSize.y / 2) - roomSize.x / 2);
+                            xSpawnSize = Random.Range(((-mapSize.x / 2) + roomSize.y / 2) + 1, ((mapSize.x / 2) - roomSize.y / 2) + 1);
+                            ySpawnSize = Random.Range(((-mapSize.y / 2) + roomSize.x / 2) + 1, ((mapSize.y / 2) - roomSize.x / 2) + 1);
                         }
                     }
 
                     Vector2 roomPos = new Vector2Int(xSpawnSize, ySpawnSize);
 
                     GameObject room = Instantiate(roomToSpawn.gameObject, roomPos, Quaternion.Euler(0, 0, roomRot));
-                    room.transform.parent = tilemap.transform.parent; 
+                    room.transform.parent = tilemap.transform.parent;
+                    room.GetComponent<Room>().CreateColliders();
+
+                    if (room.GetComponent<Room>().m_validLocation == false)
+                    {
+                        DestroyImmediate(room);
+                    }
+                    else
+                    {
+                        roomToSpawn.m_spawnedRooms++;
+                    }
                 }
             }
         }
@@ -141,7 +143,11 @@ public class MapGenerator : MonoBehaviour
 
             foreach (var room in FindObjectsOfType<Room>())
             {
-                room.GetComponent<Room>().m_spawnedRooms = 0;
+                foreach (Room prefabRooms in rooms)
+                {
+                    prefabRooms.m_spawnedRooms = 0;
+                }
+
                 DestroyImmediate(room.gameObject);
             }
         }

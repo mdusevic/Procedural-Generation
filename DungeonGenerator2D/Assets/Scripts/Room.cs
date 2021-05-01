@@ -17,13 +17,47 @@ public class Room : MonoBehaviour
 
     public int m_spawnedRooms = 0;
 
+    public bool m_validLocation = true;
+
     #endregion
 
     // When object is created in scene, colliders are attached
-    public void OnEnable()
+    public void CreateColliders()
     {
-        TilemapCollider2D roomCollider = this.gameObject.AddComponent<TilemapCollider2D>();
-        roomCollider.usedByComposite = true;
-        this.transform.parent.gameObject.AddComponent<CompositeCollider2D>();
+        CreateGridCollider();
+        CreateRoomCollider();
+    }
+
+    private void CreateGridCollider()
+    {
+        GameObject grid = this.transform.parent.gameObject;
+
+        if (grid.GetComponent<Rigidbody2D>())
+        {
+            return;
+        }
+
+        if (!grid.GetComponent<CompositeCollider2D>())
+        {
+            grid.AddComponent<CompositeCollider2D>();
+            grid.GetComponent<Rigidbody2D>().isKinematic = true;
+        }
+    }
+
+    private void CreateRoomCollider()
+    {
+        if (!this.gameObject.GetComponent<TilemapCollider2D>())
+        {
+            this.gameObject.AddComponent<TilemapCollider2D>();
+            this.gameObject.GetComponent<TilemapCollider2D>().usedByComposite = true;
+        }
+    }
+
+    public void OnCollisionEnter2D(Collision2D col)
+    {
+        if (col.gameObject.GetComponent<Room>())
+        {
+            m_validLocation = false;
+        }
     }
 }
