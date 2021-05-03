@@ -17,8 +17,6 @@ public class Room : MonoBehaviour
 
     public int m_spawnedRooms = 0;
 
-    public bool m_validLocation = true;
-
     #endregion
 
     // When object is created in scene, colliders are attached
@@ -51,13 +49,11 @@ public class Room : MonoBehaviour
             this.gameObject.AddComponent<TilemapCollider2D>();
             this.gameObject.GetComponent<TilemapCollider2D>().usedByComposite = true;
         }
-    }
 
-    public void OnCollisionEnter2D(Collision2D col)
-    {
-        if (col.gameObject.GetComponent<Room>())
-        {
-            m_validLocation = false;
-        }
+        //if (!this.gameObject.GetComponent<BoxCollider2D>())
+        //{
+        //    this.gameObject.AddComponent<BoxCollider2D>();
+        //    this.gameObject.GetComponent<BoxCollider2D>().isTrigger = true;
+        //}
     }
 }

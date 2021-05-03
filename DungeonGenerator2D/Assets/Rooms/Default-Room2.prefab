@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 4418296954585214800}
   - component: {fileID: 4418296954585214803}
   - component: {fileID: 4418296954585214802}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Default-Room2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -522,4 +522,3 @@ MonoBehaviour:
   m_roomSpawnLimit: 50
   m_enableRoomRot: 0
   m_spawnedRooms: 0
-  m_validLocation: 1

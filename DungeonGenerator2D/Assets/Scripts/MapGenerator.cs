@@ -107,12 +107,22 @@ public class MapGenerator : MonoBehaviour
                     }
 
                     Vector2 roomPos = new Vector2Int(xSpawnSize, ySpawnSize);
-
                     GameObject room = Instantiate(roomToSpawn.gameObject, roomPos, Quaternion.Euler(0, 0, roomRot));
                     room.transform.parent = tilemap.transform.parent;
                     room.GetComponent<Room>().CreateColliders();
 
-                    if (room.GetComponent<Room>().m_validLocation == false)
+                    int layerMask = 1 << 8;
+                    Collider2D[] colliders = Physics2D.OverlapBoxAll(roomPos, new Vector2Int(roomSize.x, roomSize.y), roomRot, layerMask);
+                    bool isValidLocation = colliders.Length == 0;
+
+                    foreach (TilemapCollider2D col in colliders)
+                    {
+                        Debug.Log(col.gameObject);
+                    }
+
+                    Debug.Log(isValidLocation + "  " + colliders.Length);
+
+                    if (!isValidLocation)
                     {
                         DestroyImmediate(room);
                     }
