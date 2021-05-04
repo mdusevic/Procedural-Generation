@@ -50,10 +50,10 @@ public class Room : MonoBehaviour
             this.gameObject.GetComponent<TilemapCollider2D>().usedByComposite = true;
         }
 
-        //if (!this.gameObject.GetComponent<BoxCollider2D>())
-        //{
-        //    this.gameObject.AddComponent<BoxCollider2D>();
-        //    this.gameObject.GetComponent<BoxCollider2D>().isTrigger = true;
-        //}
+        if (!this.gameObject.GetComponent<BoxCollider2D>())
+        {
+            this.gameObject.AddComponent<BoxCollider2D>();
+            this.gameObject.GetComponent<BoxCollider2D>().isTrigger = true;
+        }
     }
 }
