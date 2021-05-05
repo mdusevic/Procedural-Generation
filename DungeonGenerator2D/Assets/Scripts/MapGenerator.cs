@@ -58,7 +58,27 @@ public class MapGenerator : MonoBehaviour
     public int roomMinDistance = 1;
 
     // Holds an array of rotations the room can be set to
-    private int[] roomRotAngles = { 0, 90, 180, 270 };
+    private readonly int[] roomRotAngles = { 0, 90, 180, 270 };
+
+    #endregion
+
+    #region Corridors
+
+    [Space(4)]
+    [Header("Corridors")]
+
+    [SerializeField]
+    [Tooltip("Corridor tilemap used to create the corridors connecting the rooms")]
+    public Tilemap corridorTilemap = null;
+
+    [Tooltip("Textures used to fill the map's corridors")]
+    [SerializeField]
+    public Tile corridorTile = null;
+
+    private readonly int[] tileDir = { 1, 1, -1, -1 };
+    
+    // Used to determine whether a node has been traversed
+    private Dictionary<Tile, bool> visited = new Dictionary<Tile, bool>();
 
     #endregion
 
@@ -96,8 +116,9 @@ public class MapGenerator : MonoBehaviour
         // If rooms are provided
         if (rooms != null)
         {
-            // Resets rooms each time
+            // Resets rooms and corridors each time
             ResetRooms();
+            ResetCorridors();
 
             int xSpawnPos;
             int ySpawnPos;
@@ -196,7 +217,138 @@ public class MapGenerator : MonoBehaviour
 
     public void GenerateCorridors()
     {
+        if (corridorTile == null && corridorTilemap == null)
+        {
+            return;
+        }
 
+        ResetCorridors();
+
+        // Creates a stack for tiles to be processed
+        Stack<Tile> stack = new Stack<Tile>();
+
+        // Randomly find a tile to use as the starting tile
+        Vector2Int newTilePos;
+        bool isValidTile = false;
+        bool deadEndFound = false;
+
+        do
+        {
+            int tilePosX = Random.Range(-mapSize.x / 2, mapSize.x / 2);
+            int tilePosY = Random.Range(-mapSize.y / 2, mapSize.y / 2);
+
+            newTilePos = new Vector2Int(tilePosX, tilePosY);
+
+            int layerMask = 1 << 8;
+            Collider2D[] overlapObj = Physics2D.OverlapBoxAll(newTilePos, new Vector2(1, 1), 0, layerMask);
+
+            // If no overlaps have been detected in the layermask
+            if (overlapObj.Length == 0)
+            {
+                // Location is deemed valid and we are no longer in do/while loop
+                isValidTile = true;
+            }
+
+        } while (!isValidTile);
+
+        // Assign starting tile
+        Tile startTile = (Tile)corridorTilemap.GetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0));
+        stack.Push(startTile);
+        visited.Add(startTile, true);
+
+        while (stack.Count > 0)
+        {
+            stack.Pop();
+            Tile currentTile = GetRandomNeighbourTile((new Vector3Int(newTilePos.x, newTilePos.y, 0)));
+
+            if (currentTile != null)
+            {
+                stack.Push(currentTile);
+                visited.Add(currentTile, true);
+            }
+        }
+
+        // SET TILES 
+        // corridorTilemap.SetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0), corridorTile);
+
+        // CREATE A GET TILE POS FUNCTION
+
+
+
+        // Depth First Search Method
+
+        // Pick a random point on tilemap
+        // - check for collisions with rooms before finding spot
+        // - must be within the map's size
+
+        // Check surrounding pieces for unvisited and valid tiles and push into list
+        // - tile must be unvisited and not be surrounded 
+        // Pick a random direction from that list 
+        // Store prev tile
+        // Repeat with new tile until dead end found
+
+        // When a deadend is found, backtrack to previous tile
+        // Pick a new direction if any unvisited tiles surround it.
+        // If no piece is found backtrack
+
+        // Eventually the tile will return to the initial starting tile
+
+        // Repeat process at a new starting location 
+    }
+
+    private Tile GetRandomNeighbourTile(Vector3Int position)
+    {
+        Tile randNeighbour;
+
+        List<TileBase> neighbours = GetUnvisitedNeighbours(corridorTilemap, position);
+
+        if (neighbours == null)
+        {
+            return null;
+        }
+
+        int tileID = Random.Range(0, neighbours.Count);
+        randNeighbour = (Tile)neighbours[tileID];
+
+        return randNeighbour;
+    }
+
+    private List<TileBase> GetUnvisitedNeighbours(Tilemap tilemap, Vector3Int originalPos)
+    {
+        List<TileBase> neighbourTiles = new List<TileBase>();
+
+        for (int x = -1; x <= 1; ++x)
+        {
+            for (int y = -1; y <= 1; ++y)
+            {
+                Vector3Int point = new Vector3Int(originalPos.x + x, originalPos.y + y, 0);
+                if (tilemap.cellBounds.Contains(point) && x != 0 || y != 0)
+                {
+                    // Checks if tile is overlapping into a room before adding to list
+                    int layerMask = 1 << 8;
+                    Collider2D[] overlapObj = Physics2D.OverlapBoxAll(new Vector2Int(point.x, point.y), new Vector2(1, 1), 0, layerMask);
+
+                    if (overlapObj.Length == 0)
+                    {
+                        neighbourTiles.Add(tilemap.GetTile(point));
+                    }
+                }
+            }
+        }
+
+        // Check neighbouring tiles and remove visited tiles
+        foreach (KeyValuePair<Tile, bool> visitedTile in visited)
+        {
+            foreach (TileBase tile in neighbourTiles)
+            {
+                if (visitedTile.Key == tile)
+                {
+                    neighbourTiles.Remove(tile);
+                }
+            }
+        }
+
+        return neighbourTiles;
     }
 
     private void GenerateDoors()
@@ -225,9 +377,18 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
+    private void ResetCorridors()
+    {
+        if (corridorTilemap != null)
+        {
+            corridorTilemap.ClearAllTiles();
+        }
+    }
+
     public void ResetMap()
     {
         ResetVoidMap();
         ResetRooms();
+        ResetCorridors();
     }
 }
