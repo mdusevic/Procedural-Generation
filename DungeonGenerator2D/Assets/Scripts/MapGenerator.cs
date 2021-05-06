@@ -78,7 +78,8 @@ public class MapGenerator : MonoBehaviour
     private readonly int[] tileDir = { 1, 1, -1, -1 };
     
     // Used to determine whether a node has been traversed
-    private Dictionary<Tile, bool> visited = new Dictionary<Tile, bool>();
+    private List<Tile> visited = new List<Tile>();
+    private Dictionary<Tile, Vector3Int> allCorridors = new Dictionary<Tile, Vector3Int>();
 
     #endregion
 
@@ -225,48 +226,100 @@ public class MapGenerator : MonoBehaviour
         ResetCorridors();
 
         // Creates a stack for tiles to be processed
-        Stack<Tile> stack = new Stack<Tile>();
+        List<Tile> stack = new List<Tile>();
 
         // Randomly find a tile to use as the starting tile
         Vector2Int newTilePos;
         bool isValidTile = false;
-        bool deadEndFound = false;
+        bool isFinished = false;
+        int fails = 0;
 
-        do
+        while (!isFinished)
         {
-            int tilePosX = Random.Range(-mapSize.x / 2, mapSize.x / 2);
-            int tilePosY = Random.Range(-mapSize.y / 2, mapSize.y / 2);
-
-            newTilePos = new Vector2Int(tilePosX, tilePosY);
-
-            int layerMask = 1 << 8;
-            Collider2D[] overlapObj = Physics2D.OverlapBoxAll(newTilePos, new Vector2(1, 1), 0, layerMask);
-
-            // If no overlaps have been detected in the layermask
-            if (overlapObj.Length == 0)
+            do
             {
-                // Location is deemed valid and we are no longer in do/while loop
-                isValidTile = true;
+                int tilePosX = Random.Range(-mapSize.x / 2, mapSize.x / 2);
+                int tilePosY = Random.Range(-mapSize.y / 2, mapSize.y / 2);
+
+                newTilePos = new Vector2Int(tilePosX, tilePosY);
+
+                int layerMask = 1 << 8;
+                Collider2D[] overlapObj = Physics2D.OverlapBoxAll(newTilePos, new Vector2(1, 1), 0, layerMask);
+
+                // If no overlaps have been detected in the layermask
+                if (overlapObj.Length == 0)
+                {
+                    // Location is deemed valid and we are no longer in do/while loop
+                    isValidTile = true;
+
+                    // Resets the fail safe
+                    fails = 0;
+                }
+                else if (overlapObj.Length > 0)
+                {
+                    // Fail safe is increased
+                    fails++;
+                }
+
+            } while (!isValidTile && fails < 50);
+
+            if (fails == 50)
+            {
+                isFinished = true;
+                break;
             }
 
-        } while (!isValidTile);
+            // Assign starting tile
+            corridorTilemap.SetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0), corridorTile);
+            Tile startTile = (Tile)corridorTilemap.GetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0));
+            stack.Add(startTile);
+            visited.Add(startTile);
+            allCorridors.Add(startTile, new Vector3Int(newTilePos.x, newTilePos.y, 0));
 
-        // Assign starting tile
-        Tile startTile = (Tile)corridorTilemap.GetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0));
-        stack.Push(startTile);
-        visited.Add(startTile, true);
+            Tile currentTile = startTile;
 
-        while (stack.Count > 0)
-        {
-            stack.Pop();
-            Tile currentTile = GetRandomNeighbourTile((new Vector3Int(newTilePos.x, newTilePos.y, 0)));
-
-            if (currentTile != null)
+            while (stack.Count > 0)
             {
-                stack.Push(currentTile);
-                visited.Add(currentTile, true);
+                Dictionary<TileBase, Vector3Int> neighbourTiles;
+
+                neighbourTiles = GetUnvisitedNeighbours(corridorTilemap, GetTilePosition(allCorridors, currentTile));
+
+                if (neighbourTiles == null)
+                {
+                    Tile prevTile = stack[stack.Count - 1];
+                    currentTile = prevTile;
+
+                    neighbourTiles = GetUnvisitedNeighbours(corridorTilemap, GetTilePosition(allCorridors, currentTile));
+                }
+
+                //stack.RemoveAt(stack.Count - 1);
+
+                currentTile = GetRandomNeighbourTile(neighbourTiles);
+                stack.Add(currentTile);
+
+                if (stack[stack.Count - 1] == startTile && neighbourTiles.Count == 0)
+                {
+                    isValidTile = false;
+                    stack.Clear();
+                    break;
+                }
+
+                visited.Add(currentTile);
+
+                allCorridors.Add(currentTile, );
+
+                Vector3Int tilePos = GetTilePosition(currentTile);
+                corridorTilemap.SetTile(tilePos, corridorTile);
             }
         }
+
+        //foreach (Tile corridor in visited)
+        //{
+        //    Vector3Int tilePos = GetTilePosition(corridor);
+        //    corridorTilemap.SetTile(tilePos, corridorTile);
+        //}
+
+
 
         // SET TILES 
         // corridorTilemap.SetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0), corridorTile);
@@ -296,26 +349,49 @@ public class MapGenerator : MonoBehaviour
         // Repeat process at a new starting location 
     }
 
-    private Tile GetRandomNeighbourTile(Vector3Int position)
+    private Vector3Int GetTilePosition(Dictionary<Tile, Vector3Int> tiles, Tile tile)
     {
-        Tile randNeighbour;
+        if (tile == null)
+        {
+            return new Vector3Int(0, 0, 0);
+        }
 
-        List<TileBase> neighbours = GetUnvisitedNeighbours(corridorTilemap, position);
+        foreach (KeyValuePair<Tile, Vector3Int> tileStats in allCorridors)
+        {
+            if (tileStats.Key == tile)
+            {
+                Vector3Int tilePos = tileStats.Value;
+                return tilePos;
+            }
+        }
 
-        if (neighbours == null)
+        return new Vector3Int(0, 0, 0);
+    }
+
+    private Tile GetRandomNeighbourTile(Dictionary<TileBase, Vector3Int> tiles)
+    {
+        if (tiles.Count == 0)
         {
             return null;
         }
 
+        Tile randNeighbour;
+        List<Tile> neighbours = new List<Tile>();
+
+        foreach (KeyValuePair<TileBase, Vector3Int> tile in tiles)
+        {
+            neighbours.Add((Tile)tile.Key);
+        }
+
         int tileID = Random.Range(0, neighbours.Count);
-        randNeighbour = (Tile)neighbours[tileID];
+        randNeighbour = neighbours[tileID];
 
         return randNeighbour;
     }
 
-    private List<TileBase> GetUnvisitedNeighbours(Tilemap tilemap, Vector3Int originalPos)
+    private Dictionary<TileBase, Vector3Int> GetUnvisitedNeighbours(Tilemap tilemap, Vector3Int originalPos)
     {
-        List<TileBase> neighbourTiles = new List<TileBase>();
+        Dictionary<TileBase, Vector3Int> neighbourTiles = new Dictionary<TileBase, Vector3Int>();
 
         for (int x = -1; x <= 1; ++x)
         {
@@ -330,20 +406,20 @@ public class MapGenerator : MonoBehaviour
 
                     if (overlapObj.Length == 0)
                     {
-                        neighbourTiles.Add(tilemap.GetTile(point));
+                        neighbourTiles.Add(tilemap.GetTile(point), point);
                     }
                 }
             }
         }
 
         // Check neighbouring tiles and remove visited tiles
-        foreach (KeyValuePair<Tile, bool> visitedTile in visited)
+        foreach (Tile visitedTile in visited)
         {
-            foreach (TileBase tile in neighbourTiles)
+            foreach (KeyValuePair<TileBase, Vector3Int> tile in neighbourTiles)
             {
-                if (visitedTile.Key == tile)
+                if (visitedTile == tile.Key)
                 {
-                    neighbourTiles.Remove(tile);
+                    neighbourTiles.Remove(tile.Key);
                 }
             }
         }
