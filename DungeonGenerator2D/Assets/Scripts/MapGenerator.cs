@@ -3,6 +3,12 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
+public struct Node
+{
+    public Tile m_tile;
+    public Vector3Int m_position;
+}
+
 [ExecuteInEditMode]
 public class MapGenerator : MonoBehaviour
 {
@@ -76,10 +82,9 @@ public class MapGenerator : MonoBehaviour
     public Tile corridorTile = null;
 
     private readonly int[] tileDir = { 1, 1, -1, -1 };
-    
+
     // Used to determine whether a node has been traversed
-    private List<Tile> visited = new List<Tile>();
-    private Dictionary<Tile, Vector3Int> allCorridors = new Dictionary<Tile, Vector3Int>();
+    private List<Node> visited = new List<Node>();
 
     #endregion
 
@@ -226,7 +231,7 @@ public class MapGenerator : MonoBehaviour
         ResetCorridors();
 
         // Creates a stack for tiles to be processed
-        List<Tile> stack = new List<Tile>();
+        Stack<Node> stack = new Stack<Node>();
 
         // Randomly find a tile to use as the starting tile
         Vector2Int newTilePos;
@@ -272,52 +277,59 @@ public class MapGenerator : MonoBehaviour
             // Assign starting tile
             corridorTilemap.SetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0), corridorTile);
             Tile startTile = (Tile)corridorTilemap.GetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0));
-            stack.Add(startTile);
-            visited.Add(startTile);
-            allCorridors.Add(startTile, new Vector3Int(newTilePos.x, newTilePos.y, 0));
 
-            Tile currentTile = startTile;
+            Node start = new Node();
+            start.m_tile = startTile;
+            start.m_position = new Vector3Int(newTilePos.x, newTilePos.y, 0);
+
+            stack.Push(start);
+            visited.Add(start);
+
+            Node current = start;
 
             while (stack.Count > 0)
             {
-                Dictionary<TileBase, Vector3Int> neighbourTiles;
+                Debug.Log(visited);
 
-                neighbourTiles = GetUnvisitedNeighbours(corridorTilemap, GetTilePosition(allCorridors, currentTile));
+                stack.Pop();
+                List<Node> neighbourTiles;
+
+                neighbourTiles = GetUnvisitedNeighbours(corridorTilemap, current.m_position);
 
                 if (neighbourTiles == null)
                 {
-                    Tile prevTile = stack[stack.Count - 1];
-                    currentTile = prevTile;
+                    Node prev = visited[visited.Count - 1];
+                    current = prev;
 
-                    neighbourTiles = GetUnvisitedNeighbours(corridorTilemap, GetTilePosition(allCorridors, currentTile));
+                    neighbourTiles = GetUnvisitedNeighbours(corridorTilemap, current.m_position);
+
+                    if (current.m_position == start.m_position && neighbourTiles == null)
+                    {
+                        foreach (Node corridor in visited)
+                        {
+                            corridorTilemap.SetTile(corridor.m_position, corridorTile);
+                        }
+
+                        isValidTile = false;
+                        break;
+                    }
                 }
-
-                //stack.RemoveAt(stack.Count - 1);
-
-                currentTile = GetRandomNeighbourTile(neighbourTiles);
-                stack.Add(currentTile);
-
-                if (stack[stack.Count - 1] == startTile && neighbourTiles.Count == 0)
+                else
                 {
-                    isValidTile = false;
-                    stack.Clear();
-                    break;
+                    Node newTile = GetRandomNeighbourTile(neighbourTiles);
+
+                    stack.Push(newTile);
+                    visited.Add(newTile);
+
+                    current = newTile;
                 }
-
-                visited.Add(currentTile);
-
-                allCorridors.Add(currentTile, );
-
-                Vector3Int tilePos = GetTilePosition(currentTile);
-                corridorTilemap.SetTile(tilePos, corridorTile);
             }
         }
 
-        //foreach (Tile corridor in visited)
-        //{
-        //    Vector3Int tilePos = GetTilePosition(corridor);
-        //    corridorTilemap.SetTile(tilePos, corridorTile);
-        //}
+        foreach (Node corridor in visited)
+        {
+            corridorTilemap.SetTile(corridor.m_position, corridorTile);
+        }
 
 
 
@@ -349,77 +361,71 @@ public class MapGenerator : MonoBehaviour
         // Repeat process at a new starting location 
     }
 
-    private Vector3Int GetTilePosition(Dictionary<Tile, Vector3Int> tiles, Tile tile)
+    private List<Node> GetAllTiles(Tilemap tilemap)
     {
-        if (tile == null)
-        {
-            return new Vector3Int(0, 0, 0);
-        }
+        List<Node> allTiles = new List<Node>();
 
-        foreach (KeyValuePair<Tile, Vector3Int> tileStats in allCorridors)
+        // Loops through all the positions of the tile map
+        for (int x = 0; x < mapSize.x; x++)
         {
-            if (tileStats.Key == tile)
+            for (int y = 0; y < mapSize.y; y++)
             {
-                Vector3Int tilePos = tileStats.Value;
-                return tilePos;
+                Node node = new Node
+                {
+                    m_tile = (Tile)tilemap.GetTile(new Vector3Int(x, y, 0)),
+                    m_position = new Vector3Int(x, y, 0)
+                };
             }
         }
 
-        return new Vector3Int(0, 0, 0);
+        return allTiles;
     }
 
-    private Tile GetRandomNeighbourTile(Dictionary<TileBase, Vector3Int> tiles)
+    private Node GetRandomNeighbourTile(List<Node> tiles)
     {
         if (tiles.Count == 0)
         {
-            return null;
+            return new Node { };
         }
 
-        Tile randNeighbour;
-        List<Tile> neighbours = new List<Tile>();
+        Node randNeighbour;
 
-        foreach (KeyValuePair<TileBase, Vector3Int> tile in tiles)
-        {
-            neighbours.Add((Tile)tile.Key);
-        }
-
-        int tileID = Random.Range(0, neighbours.Count);
-        randNeighbour = neighbours[tileID];
+        int tileID = Random.Range(0, tiles.Count);
+        randNeighbour = tiles[tileID];
 
         return randNeighbour;
     }
 
-    private Dictionary<TileBase, Vector3Int> GetUnvisitedNeighbours(Tilemap tilemap, Vector3Int originalPos)
+    private List<Node> GetUnvisitedNeighbours(Tilemap tilemap, Vector3Int originalPos)
     {
-        Dictionary<TileBase, Vector3Int> neighbourTiles = new Dictionary<TileBase, Vector3Int>();
+        List<Node> neighbourTiles = new List<Node>();
 
-        for (int x = -1; x <= 1; ++x)
+        Vector3Int above = new Vector3Int(originalPos.x, originalPos.y + 1, 0);
+        Tile aboveTile = (Tile)tilemap.GetTile(above);
+        neighbourTiles.Add(new Node { m_tile = aboveTile, m_position = above });
+
+        Vector3Int below = new Vector3Int(originalPos.x, originalPos.y - 1, 0);
+        Tile belowTile = (Tile)tilemap.GetTile(below);
+        neighbourTiles.Add(new Node { m_tile = belowTile, m_position = below });
+
+        Vector3Int right = new Vector3Int(originalPos.x + 1, originalPos.y, 0);
+        Tile rightTile = (Tile)tilemap.GetTile(right);
+        neighbourTiles.Add(new Node { m_tile = rightTile, m_position = right });
+
+        Vector3Int left = new Vector3Int(originalPos.x - 1, originalPos.y, 0);
+        Tile leftTile = (Tile)tilemap.GetTile(left);
+        neighbourTiles.Add(new Node { m_tile = leftTile, m_position = left });
+
+        // Checks if tile is overlapping into a room or is visited. If true, it is removed.
+        foreach (Node tile in neighbourTiles)
         {
-            for (int y = -1; y <= 1; ++y)
+            foreach (Node visitedTile in visited)
             {
-                Vector3Int point = new Vector3Int(originalPos.x + x, originalPos.y + y, 0);
-                if (tilemap.cellBounds.Contains(point) && x != 0 || y != 0)
+                int layerMask = 1 << 8;
+                Collider2D overlapObj = Physics2D.OverlapBox(new Vector2Int(tile.m_position.x, tile.m_position.y), new Vector2(1, 1), 0, layerMask);
+                if (visitedTile.m_position == tile.m_position || overlapObj != null)
                 {
-                    // Checks if tile is overlapping into a room before adding to list
-                    int layerMask = 1 << 8;
-                    Collider2D[] overlapObj = Physics2D.OverlapBoxAll(new Vector2Int(point.x, point.y), new Vector2(1, 1), 0, layerMask);
-
-                    if (overlapObj.Length == 0)
-                    {
-                        neighbourTiles.Add(tilemap.GetTile(point), point);
-                    }
-                }
-            }
-        }
-
-        // Check neighbouring tiles and remove visited tiles
-        foreach (Tile visitedTile in visited)
-        {
-            foreach (KeyValuePair<TileBase, Vector3Int> tile in neighbourTiles)
-            {
-                if (visitedTile == tile.Key)
-                {
-                    neighbourTiles.Remove(tile.Key);
+                    neighbourTiles.Remove(tile);
                 }
             }
         }
