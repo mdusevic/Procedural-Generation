@@ -81,8 +81,6 @@ public class MapGenerator : MonoBehaviour
     [SerializeField]
     public Tile corridorTile = null;
 
-    private readonly int[] tileDir = { 1, 1, -1, -1 };
-
     // Used to determine whether a node has been traversed
     private List<Node> visited = new List<Node>();
 
@@ -230,108 +228,121 @@ public class MapGenerator : MonoBehaviour
 
         ResetCorridors();
 
-        // Creates a stack for tiles to be processed
-        Stack<Node> stack = new Stack<Node>();
-
         // Randomly find a tile to use as the starting tile
-        Vector2Int newTilePos;
+        Vector2Int newTilePos = Vector2Int.zero;
         bool isValidTile = false;
         bool isFinished = false;
+        int corridorFails = 0;
+        int newTileFails = 0;
         int fails = 0;
 
-        while (!isFinished)
+        do
         {
-            do
+            int tilePosX = Random.Range(-mapSize.x / 2 + 1, mapSize.x / 2 - 1);
+            int tilePosY = Random.Range(-mapSize.y / 2 + 1, mapSize.y / 2 - 1);
+
+            newTilePos = new Vector2Int(tilePosX, tilePosY);
+
+            int layerMask = 1 << 8;
+            Collider2D[] overlapObj = Physics2D.OverlapBoxAll(newTilePos, new Vector2(1, 1), 0, layerMask);
+
+            // If no overlaps have been detected in the layermask
+            if (overlapObj.Length == 0)
             {
-                int tilePosX = Random.Range(-mapSize.x / 2, mapSize.x / 2);
-                int tilePosY = Random.Range(-mapSize.y / 2, mapSize.y / 2);
-
-                newTilePos = new Vector2Int(tilePosX, tilePosY);
-
-                int layerMask = 1 << 8;
-                Collider2D[] overlapObj = Physics2D.OverlapBoxAll(newTilePos, new Vector2(1, 1), 0, layerMask);
-
-                // If no overlaps have been detected in the layermask
-                if (overlapObj.Length == 0)
-                {
-                    // Location is deemed valid and we are no longer in do/while loop
-                    isValidTile = true;
-
-                    // Resets the fail safe
-                    fails = 0;
-                }
-                else if (overlapObj.Length > 0)
-                {
-                    // Fail safe is increased
-                    fails++;
-                }
-
-            } while (!isValidTile && fails < 50);
-
-            if (fails == 50)
-            {
-                isFinished = true;
-                break;
+                // Location is deemed valid and we are no longer in do/while loop
+                isValidTile = true;
             }
 
-            // Assign starting tile
-            corridorTilemap.SetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0), corridorTile);
-            Tile startTile = (Tile)corridorTilemap.GetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0));
+        } while (!isValidTile);
 
-            Node start = new Node();
-            start.m_tile = startTile;
-            start.m_position = new Vector3Int(newTilePos.x, newTilePos.y, 0);
+        // Assign starting tile
+        Tile startTile = (Tile)corridorTilemap.GetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0));
 
-            stack.Push(start);
-            visited.Add(start);
+        Node start = new Node();
+        start.m_tile = startTile;
+        start.m_position = new Vector3Int(newTilePos.x, newTilePos.y, 0);
+        corridorTilemap.SetTile(start.m_position, corridorTile);
 
-            Node current = start;
+        visited.Add(start);
 
-            while (stack.Count > 0)
+        Node current = start;
+
+        do
+        {
+            if (fails > 50)
             {
-                Debug.Log(visited);
+                fails = 0;
 
-                stack.Pop();
-                List<Node> neighbourTiles;
+                corridorFails++;
+            }
 
-                neighbourTiles = GetUnvisitedNeighbours(corridorTilemap, current.m_position);
+            Debug.Log(visited);
 
-                if (neighbourTiles == null)
+            List<Node> neighbourTiles = GetUnvisitedNeighbours(corridorTilemap, current.m_position);
+
+            while (neighbourTiles.Count == 0 && fails < 50)
+            {
+                fails++;
+
+                if (visited.Count > 1)
                 {
                     Node prev = visited[visited.Count - 1];
                     current = prev;
 
                     neighbourTiles = GetUnvisitedNeighbours(corridorTilemap, current.m_position);
-
-                    if (current.m_position == start.m_position && neighbourTiles == null)
-                    {
-                        foreach (Node corridor in visited)
-                        {
-                            corridorTilemap.SetTile(corridor.m_position, corridorTile);
-                        }
-
-                        isValidTile = false;
-                        break;
-                    }
                 }
                 else
                 {
-                    Node newTile = GetRandomNeighbourTile(neighbourTiles);
+                    isValidTile = false;
+                    neighbourTiles.Clear();
+                    visited.Clear();
+                    break;
+                }
 
-                    stack.Push(newTile);
-                    visited.Add(newTile);
-
-                    current = newTile;
+                if (current.m_position == start.m_position || fails == 50)
+                {
+                    isValidTile = false;
+                    neighbourTiles.Clear();
+                    visited.Clear();
+                    break;
                 }
             }
-        }
 
-        foreach (Node corridor in visited)
-        {
-            corridorTilemap.SetTile(corridor.m_position, corridorTile);
-        }
+            if (visited.Count > 0)
+            {
+                Node newTile = GetRandomNeighbourTile(neighbourTiles);
+                visited.Add(newTile);
+                current = newTile;
+
+                neighbourTiles.Clear();
+
+                corridorTilemap.SetTile(current.m_position, corridorTile);
+            }
+
+        } while (visited.Count != 0 && corridorFails < 50);
+
+        //while (!isFinished)
+        //{
+        //    // If the fail safe in creating the room's position has been breached
+        //    //if (fails > 50)
+        //    //{
+        //    //    // Resets the fail safe
+        //    //    fails = 0;
+
+        //    //    // Increases the secondary fail safe
+        //    //    newTileFails++;
+        //    //    isFinished = true;
+        //    //    isValidTile = true;
+        //    //}
 
 
+
+
+        //    //fails = 0;
+
+        //   
+
+        //}
 
         // SET TILES 
         // corridorTilemap.SetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0), corridorTile);
@@ -416,21 +427,29 @@ public class MapGenerator : MonoBehaviour
         Tile leftTile = (Tile)tilemap.GetTile(left);
         neighbourTiles.Add(new Node { m_tile = leftTile, m_position = left });
 
-        // Checks if tile is overlapping into a room or is visited. If true, it is removed.
-        foreach (Node tile in neighbourTiles)
+        List<Node> unvisitedTiles = new List<Node>();
+
+        foreach (Node neighbour in neighbourTiles)
         {
-            foreach (Node visitedTile in visited)
+            int layerMask = 1 << 8;
+            Collider2D[] overlapObj = Physics2D.OverlapBoxAll(new Vector2Int(neighbour.m_position.x, neighbour.m_position.y), new Vector2(1, 1), 0, layerMask);
+        
+            if (overlapObj.Length == 0)
             {
-                int layerMask = 1 << 8;
-                Collider2D overlapObj = Physics2D.OverlapBox(new Vector2Int(tile.m_position.x, tile.m_position.y), new Vector2(1, 1), 0, layerMask);
-                if (visitedTile.m_position == tile.m_position || overlapObj != null)
-                {
-                    neighbourTiles.Remove(tile);
-                }
+                unvisitedTiles.Add(neighbour);
             }
         }
 
-        return neighbourTiles;
+        // Checks if tile has been visited. If true, it is removed.
+        foreach (Node tile in visited)
+        {
+            if (unvisitedTiles.Contains(tile))
+            {
+                unvisitedTiles.Remove(tile);
+            }
+        }
+
+        return unvisitedTiles;
     }
 
     private void GenerateDoors()
@@ -464,6 +483,7 @@ public class MapGenerator : MonoBehaviour
         if (corridorTilemap != null)
         {
             corridorTilemap.ClearAllTiles();
+            visited.Clear();
         }
     }
 
