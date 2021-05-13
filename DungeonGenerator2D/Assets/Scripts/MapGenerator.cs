@@ -81,11 +81,15 @@ public class MapGenerator : MonoBehaviour
     [SerializeField]
     public Tile corridorTile = null;
 
+    public Tile buildTile = null;
+
     // Used to determine whether a node has been traversed
     private List<Node> visited = new List<Node>();
 
     private bool hasFoundNeighbour = false;
     private bool noValidTiles = false;
+
+    private Vector2Int[] directions = { new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1) };
 
     #endregion
 
@@ -237,105 +241,113 @@ public class MapGenerator : MonoBehaviour
         int corridorFails = 0;
         int fails = 0;
 
-        Node start = GetCorridorStartTile();
+        Stack<Node> stack = new Stack<Node>();
 
-        if (noValidTiles)
-        {
-            return;
-        }
-        
-        corridorTilemap.SetTile(start.m_position, corridorTile);
+        Node start = new Node();
+        Node current = new Node();
+        Vector2Int corridorDir = new Vector2Int();
+
+        SetupCorridor(ref start, ref current, ref corridorDir);
         visited.Add(start);
+        stack.Push(start);
 
-        Node current = start;
+        //for (int i = 0; i < 1000; i++)
+        //{
+        //    Node next = GetUnvisitedNeighbour(corridorTilemap, current.m_position, corridorDir);
+
+        //    if (hasFoundNeighbour)
+        //    {
+        //        current = next;
+        //        visited.Add(current);
+
+        //        corridorTilemap.SetTile(current.m_position, corridorTile);
+        //    }
+        //    else
+        //    {
+        //        corridorDir = GetRandomCorridorDirection();
+
+        //        //for (int j = 0; j < 3; j++)
+        //        //{
+        //        //    corridorDir = directions[j];
+        //        //    next = GetUnvisitedNeighbour(corridorTilemap, current.m_position, corridorDir);
+        //        //}
+
+        //        //if (hasFoundNeighbour)
+        //        //{
+        //        //    start = current;
+        //        //    current = next;
+        //        //    visited.Add(current);
+
+        //        //    corridorTilemap.SetTile(current.m_position, corridorTile);
+        //        //}
+        //        //else
+        //        //{
+        //        //    current = start;
+
+        //        //    for (int j = 0; j < 3; j++)
+        //        //    {
+        //        //        corridorDir = directions[j];
+        //        //        next = GetUnvisitedNeighbour(corridorTilemap, current.m_position, corridorDir);
+        //        //    }
+
+        //        //    if (!hasFoundNeighbour)
+        //        //    {
+        //        //        start = GetCorridorStartTile();
+        //        //        current = start;
+        //        //        corridorDir = GetRandomCorridorDirection();
+        //        //    }
+        //        //}
+        //    }
+        //}
+
+        //stack.Clear();
 
         do
         {
-            if (fails > 50)
+            Node next = GetUnvisitedNeighbour(corridorTilemap, current.m_position, corridorDir);
+
+            if (!hasFoundNeighbour)
             {
-                fails = 0;
-
-                corridorFails++;
-            }
-
-            List<Node> neighbourTiles = GetUnvisitedNeighbours(corridorTilemap, current.m_position);
-
-            while (neighbourTiles.Count == 0 && fails < 50)
-            {
-                fails++;
-
-                if (visited.Count > 1)
+                if (stack.Count == 0)
                 {
-                    Node prev = visited[visited.Count - 1];
-                    current = prev;
+                    corridorFails++;
 
-                    neighbourTiles = GetUnvisitedNeighbours(corridorTilemap, current.m_position);
+                    SetupCorridor(ref start, ref current, ref corridorDir);
+                    visited.Add(start);
+                    stack.Push(start);
                 }
-                else
+                else if (stack.Count > 0)
                 {
-                    neighbourTiles.Clear();
-                    visited.Clear();
-                    break;
-                }
+                    Node prev = stack.Pop();
+                    next = prev;
 
-                if (current.m_position == start.m_position || fails == 50)
-                {
-                    neighbourTiles.Clear();
-                    visited.Clear();
-                    break;
+                    if (next.m_position == start.m_position)
+                    {
+                        current = next;
+                        corridorDir = GetRandomCorridorDirection();
+                    }
                 }
             }
-
-            if (visited.Count > 0)
+            else if (hasFoundNeighbour)
             {
-                Node newTile = GetRandomNeighbourTile(neighbourTiles);
-                visited.Add(newTile);
-                current = newTile;
-
-                neighbourTiles.Clear();
+                current = next;
+                visited.Add(current);
+                stack.Push(current);
 
                 corridorTilemap.SetTile(current.m_position, corridorTile);
             }
 
-        } while (visited.Count != 0 && corridorFails < 50);
+            if (corridorFails > 50)
+            {
+                isFinished = true;
+            }
 
-        //if (isFinished)
-        //{
-        //    return;
-        //}
-        //else
-        //{
-        //    GenerateCorridors();
-        //}
+            Debug.Log(current.m_position + " " + corridorFails);
 
-
-        //while (!isFinished)
-        //{
-        //    // If the fail safe in creating the room's position has been breached
-        //    //if (fails > 50)
-        //    //{
-        //    //    // Resets the fail safe
-        //    //    fails = 0;
-
-        //    //    // Increases the secondary fail safe
-        //    //    newTileFails++;
-        //    //    isFinished = true;
-        //    //    isValidTile = true;
-        //    //}
-
-
-
-
-        //    //fails = 0;
-
-        //   
-
-        //}
+        } while (!isFinished && corridorFails < 50);
 
         // SET TILES 
         // corridorTilemap.SetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0), corridorTile);
-
-
 
         // Depth First Search Method
 
@@ -360,6 +372,7 @@ public class MapGenerator : MonoBehaviour
 
     private Node GetCorridorStartTile()
     {
+        noValidTiles = false;
         Node start = new Node();
         Vector2Int newTilePos;
         bool isValidTile = false;
@@ -402,13 +415,31 @@ public class MapGenerator : MonoBehaviour
         start.m_tile = startTile;
         start.m_position = new Vector3Int(newTilePos.x, newTilePos.y, 0);
 
+        if (visited.Contains(start))
+        {
+            noValidTiles = true;
+            return start;
+        }
+
         return start;
+    }
+
+    private void SetupCorridor(ref Node start, ref Node current, ref Vector2Int direction)
+    {
+        start = GetCorridorStartTile();
+
+        if (noValidTiles)
+        {
+            return;
+        }
+
+        corridorTilemap.SetTile(start.m_position, corridorTile);
+        current = start;
+        direction = GetRandomCorridorDirection();
     }
 
     private Vector2Int GetRandomCorridorDirection()
     {
-        Vector2Int[] directions = { new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1) };
-
         int index = Random.Range(0, directions.Length);
         Vector2Int newDir = directions[index];
 
@@ -417,20 +448,25 @@ public class MapGenerator : MonoBehaviour
 
     private Node GetUnvisitedNeighbour(Tilemap tilemap, Vector3Int originalPos, Vector2Int direction)
     {
+        hasFoundNeighbour = false;
         Vector3Int next = new Vector3Int(originalPos.x + direction.x, originalPos.y + direction.y, 0);
         Tile nextTile = (Tile)tilemap.GetTile(next);
+
         Node neighbour = new Node { m_tile = nextTile, m_position = next };
 
-        if (neighbour.m_position.x >= -mapSize.x / 2 + 1 && neighbour.m_position.x <= mapSize.x / 2 - 1)
+        if (neighbour.m_position.x >= -mapSize.x / 2 + (direction.x < 0 ? 1f : 0) && neighbour.m_position.x <= mapSize.x / 2 - (direction.x < 0 ? 1f : 0))
         {
-            if (neighbour.m_position.y <= mapSize.y / 2 - 1 && neighbour.m_position.y >= -mapSize.y / 2 + 1)
+            if (neighbour.m_position.y <= mapSize.y / 2 - (direction.y < 0 ? 1f : 0) && neighbour.m_position.y >= -mapSize.y / 2 + (direction.y < 0 ? 1f : 0))
             {
                 int layerMask = 1 << 8;
-                Collider2D[] overlapObj = Physics2D.OverlapBoxAll(new Vector2Int(neighbour.m_position.x, neighbour.m_position.y), new Vector2(1, 1), 0, layerMask);
+                Collider2D[] overlapObj = Physics2D.OverlapBoxAll(new Vector2(neighbour.m_position.x + (direction.x < 0 ? 1 : 0), neighbour.m_position.y - (direction.y < 0 ? 1 : 0)), new Vector2(0, 0), 0, layerMask);
 
-                if (overlapObj.Length == 0 && !visited.Contains(neighbour))
+                corridorTilemap.SetTile(neighbour.m_position, buildTile);
+
+                if (overlapObj.Length == 0)
                 {
                     hasFoundNeighbour = true;
+                    return neighbour;
                 }
             }
         }
@@ -472,6 +508,7 @@ public class MapGenerator : MonoBehaviour
             corridorTilemap.ClearAllTiles();
             visited.Clear();
             noValidTiles = false;
+            hasFoundNeighbour = false;
         }
     }
 
