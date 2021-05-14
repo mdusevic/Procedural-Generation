@@ -89,7 +89,9 @@ public class MapGenerator : MonoBehaviour
     private bool hasFoundNeighbour = false;
     private bool noValidTiles = false;
 
-    private Vector2Int[] directions = { new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1) };
+    public int totalCorridorLimit = 10;
+
+    private readonly Vector2Int[] directions = { new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1) };
 
     #endregion
 
@@ -235,11 +237,9 @@ public class MapGenerator : MonoBehaviour
 
         ResetCorridors();
 
-        // Randomly find a tile to use as the starting tile
-       
         bool isFinished = false;
         int corridorFails = 0;
-        int fails = 0;
+        int corridorCount = 0;
 
         Stack<Node> stack = new Stack<Node>();
 
@@ -251,72 +251,47 @@ public class MapGenerator : MonoBehaviour
         visited.Add(start);
         stack.Push(start);
 
-        //for (int i = 0; i < 1000; i++)
-        //{
-        //    Node next = GetUnvisitedNeighbour(corridorTilemap, current.m_position, corridorDir);
+        Room[] rooms = (Room[])FindObjectsOfType(typeof(Room));
 
-        //    if (hasFoundNeighbour)
-        //    {
-        //        current = next;
-        //        visited.Add(current);
+        foreach (Room room in rooms)
+        {
+            Vector3 midpoint = room.gameObject.GetComponent<Tilemap>().cellBounds.center;
 
-        //        corridorTilemap.SetTile(current.m_position, corridorTile);
-        //    }
-        //    else
-        //    {
-        //        corridorDir = GetRandomCorridorDirection();
+            Vector3 worldSpace = room.gameObject.GetComponent<Tilemap>().GetCellCenterWorld(new Vector3Int((int)midpoint.x, (int)midpoint.y, 0));
 
-        //        //for (int j = 0; j < 3; j++)
-        //        //{
-        //        //    corridorDir = directions[j];
-        //        //    next = GetUnvisitedNeighbour(corridorTilemap, current.m_position, corridorDir);
-        //        //}
+            Debug.DrawLine(new Vector2(midpoint.x, midpoint.y), new Vector2(worldSpace.x - 0.5f, worldSpace.y - 0.5f), Color.blue, 3.0f);
 
-        //        //if (hasFoundNeighbour)
-        //        //{
-        //        //    start = current;
-        //        //    current = next;
-        //        //    visited.Add(current);
-
-        //        //    corridorTilemap.SetTile(current.m_position, corridorTile);
-        //        //}
-        //        //else
-        //        //{
-        //        //    current = start;
-
-        //        //    for (int j = 0; j < 3; j++)
-        //        //    {
-        //        //        corridorDir = directions[j];
-        //        //        next = GetUnvisitedNeighbour(corridorTilemap, current.m_position, corridorDir);
-        //        //    }
-
-        //        //    if (!hasFoundNeighbour)
-        //        //    {
-        //        //        start = GetCorridorStartTile();
-        //        //        current = start;
-        //        //        corridorDir = GetRandomCorridorDirection();
-        //        //    }
-        //        //}
-        //    }
-        //}
-
-        //stack.Clear();
+            room.gameObject.GetComponent<Tilemap>().SetTile(new Vector3Int((int)midpoint.x, (int)midpoint.y, 0), buildTile);
+        }
 
         do
         {
+            if (corridorFails > 60 || corridorCount == totalCorridorLimit)
+            {
+                isFinished = true;
+            }
+
             Node next = GetUnvisitedNeighbour(corridorTilemap, current.m_position, corridorDir);
 
             if (!hasFoundNeighbour)
             {
-                if (stack.Count == 0)
+                while (stack.Count == 0)
                 {
-                    corridorFails++;
-
                     SetupCorridor(ref start, ref current, ref corridorDir);
-                    visited.Add(start);
-                    stack.Push(start);
+
+                    if (noValidTiles)
+                    {
+                        corridorFails++;
+                    }
+                    else
+                    {
+                        visited.Add(start);
+                        stack.Push(start);
+                        break;
+                    }
                 }
-                else if (stack.Count > 0)
+
+                if (stack.Count > 0)
                 {
                     Node prev = stack.Pop();
                     next = prev;
@@ -325,6 +300,7 @@ public class MapGenerator : MonoBehaviour
                     {
                         current = next;
                         corridorDir = GetRandomCorridorDirection();
+                        corridorCount++;
                     }
                 }
             }
@@ -337,37 +313,9 @@ public class MapGenerator : MonoBehaviour
                 corridorTilemap.SetTile(current.m_position, corridorTile);
             }
 
-            if (corridorFails > 50)
-            {
-                isFinished = true;
-            }
+            //Debug.Log(current.m_position + " " + corridorFails);
 
-            Debug.Log(current.m_position + " " + corridorFails);
-
-        } while (!isFinished && corridorFails < 50);
-
-        // SET TILES 
-        // corridorTilemap.SetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0), corridorTile);
-
-        // Depth First Search Method
-
-        // Pick a random point on tilemap
-        // - check for collisions with rooms before finding spot
-        // - must be within the map's size
-
-        // Check surrounding pieces for unvisited and valid tiles and push into list
-        // - tile must be unvisited and not be surrounded 
-        // Pick a random direction from that list 
-        // Store prev tile
-        // Repeat with new tile until dead end found
-
-        // When a deadend is found, backtrack to previous tile
-        // Pick a new direction if any unvisited tiles surround it.
-        // If no piece is found backtrack
-
-        // Eventually the tile will return to the initial starting tile
-
-        // Repeat process at a new starting location 
+        } while (!isFinished && corridorFails < 60);
     }
 
     private Node GetCorridorStartTile()
@@ -459,19 +407,17 @@ public class MapGenerator : MonoBehaviour
             if (neighbour.m_position.y <= mapSize.y / 2 - (direction.y < 0 ? 1f : 0) && neighbour.m_position.y >= -mapSize.y / 2 + (direction.y < 0 ? 1f : 0))
             {
                 int layerMask = 1 << 8;
-                Collider2D[] overlapObj = Physics2D.OverlapBoxAll(new Vector2(neighbour.m_position.x + (direction.x < 0 ? 1 : 0), neighbour.m_position.y - (direction.y < 0 ? 1 : 0)), new Vector2(0, 0), 0, layerMask);
+                RaycastHit2D hit = Physics2D.Linecast(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), layerMask);
 
-                corridorTilemap.SetTile(neighbour.m_position, buildTile);
+                //Debug.DrawLine(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), Color.blue, 3.0f);
 
-                if (overlapObj.Length == 0)
+                if (hit.collider == null)
                 {
                     hasFoundNeighbour = true;
-                    return neighbour;
                 }
             }
         }
 
-        hasFoundNeighbour = false;
         return neighbour;
     }
 
