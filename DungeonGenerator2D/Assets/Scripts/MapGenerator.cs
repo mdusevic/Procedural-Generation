@@ -230,6 +230,93 @@ public class MapGenerator : MonoBehaviour
 
     public void GenerateCorridors()
     {
+        // Returns if no tile or tilemap is given
+        if (corridorTile == null && corridorTilemap == null)
+        {
+            return;
+        }
+
+        // VARIABLES
+        List<Room> connectedRooms = new List<Room>();
+
+        // Resets the tilemap on each generation
+        ResetCorridors();
+
+        // Find all rooms in scene
+        Room[] rooms = (Room[])FindObjectsOfType(typeof(Room));
+
+        // Pick one from random
+        int roomID = Random.Range(0, rooms.Length);
+        Room startTile = rooms[roomID];
+
+        // Add to connected rooms list
+        connectedRooms.Add(startTile);
+
+        // Get the starting room's midpoint
+        Vector3 startCenter = startTile.gameObject.GetComponent<Tilemap>().cellBounds.center;
+        Vector3 startMidPnt = startTile.gameObject.GetComponent<Tilemap>().CellToWorld(new Vector3Int((int)startCenter.x, (int)startCenter.y, 0));
+
+        // Draw lines to all midpoints of rooms that are not connected
+
+        Room closestRoom = new Room();
+        Vector2 closestRoomMidPnt = Vector2.zero;
+        float minDistance = float.MaxValue;
+
+        foreach (Room room in rooms)
+        {
+            if (!connectedRooms.Contains(room))
+            {
+                Vector3 center = room.gameObject.GetComponent<Tilemap>().cellBounds.center;
+                Vector3 midPntInWorld = room.gameObject.GetComponent<Tilemap>().CellToWorld(new Vector3Int((int)center.x, (int)center.y, 0));
+
+                Debug.DrawLine(new Vector2(startMidPnt.x, startMidPnt.y), new Vector2(midPntInWorld.x, midPntInWorld.y), Color.blue, 3.0f);
+
+                // Calculate distances between rooms and get the closest room
+                float distance = Vector2.Distance(new Vector2(startMidPnt.x, startMidPnt.y), new Vector2(midPntInWorld.x, midPntInWorld.y));
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    closestRoom = room;
+                    closestRoomMidPnt = midPntInWorld;
+                }
+            }
+        }
+
+        // Get next room's width and height
+        Vector3Int roomSize = closestRoom.GetComponent<Tilemap>().size;
+        int closestRoomWidth = roomSize.x;
+        int closestRoomHeight = roomSize.y;
+
+        Debug.Log(closestRoom + " -- " + roomSize + " -- " + closestRoomMidPnt);
+        Debug.DrawLine(new Vector2(startMidPnt.x, startMidPnt.y), closestRoomMidPnt, Color.green, 3.0f);
+
+        // DETERMINE ROUTE
+
+        // If starting room's x-coord is within next room's width
+        //if (startMidPnt.x > closestRoomWidth / 2)
+
+        // -- If next room is positioned above 
+        // ---- Build vertically up from starting midpoint(?)
+        // -- Else if next room is positioned below
+        // ---- Build vertically down from starting midpoint(?)
+
+        // If starting room's y-coord is within next room's height
+        // -- If next room is positioned to the right
+        // ---- Build horizontally right from starting midpoint(?)
+        // -- Else if next room is positioned to the left
+        // ---- Build horizontally left from starting midpoint(?)
+
+        // Else
+        // -- If x distance is > y distance
+        // ---- Start building out horizontally (x)
+        // -- Else
+        // ---- Start building out vertically (y)
+
+        // Repeat until all rooms have been visited
+    }
+
+    public void GenerateCorridors2()
+    {
         if (corridorTile == null && corridorTilemap == null)
         {
             return;
@@ -250,19 +337,6 @@ public class MapGenerator : MonoBehaviour
         SetupCorridor(ref start, ref current, ref corridorDir);
         visited.Add(start);
         stack.Push(start);
-
-        Room[] rooms = (Room[])FindObjectsOfType(typeof(Room));
-
-        foreach (Room room in rooms)
-        {
-            Vector3 midpoint = room.gameObject.GetComponent<Tilemap>().cellBounds.center;
-
-            Vector3 worldSpace = room.gameObject.GetComponent<Tilemap>().GetCellCenterWorld(new Vector3Int((int)midpoint.x, (int)midpoint.y, 0));
-
-            Debug.DrawLine(new Vector2(midpoint.x, midpoint.y), new Vector2(worldSpace.x - 0.5f, worldSpace.y - 0.5f), Color.blue, 3.0f);
-
-            room.gameObject.GetComponent<Tilemap>().SetTile(new Vector3Int((int)midpoint.x, (int)midpoint.y, 0), buildTile);
-        }
 
         do
         {
