@@ -8,6 +8,12 @@ public struct Node
     public Tile m_tile;
     public Vector3Int m_position;
 }
+public struct Line
+{
+    public Vector2 pointA;
+    public Vector2 pointB;
+}
+
 
 [ExecuteInEditMode]
 public class MapGenerator : MonoBehaviour
@@ -247,18 +253,17 @@ public class MapGenerator : MonoBehaviour
 
         // Pick one from random
         int roomID = Random.Range(0, rooms.Length);
-        Room startTile = rooms[roomID];
+        Room startRoom = rooms[roomID];
 
         // Add to connected rooms list
-        connectedRooms.Add(startTile);
+        connectedRooms.Add(startRoom);
 
         // Get the starting room's midpoint
-        Vector3 startCenter = startTile.gameObject.GetComponent<Tilemap>().cellBounds.center;
-        Vector3 startMidPnt = startTile.gameObject.GetComponent<Tilemap>().CellToWorld(new Vector3Int((int)startCenter.x, (int)startCenter.y, 0));
+        Vector3 startCenter = startRoom.gameObject.GetComponent<Tilemap>().cellBounds.center;
+        Vector3 startMidPnt = startRoom.gameObject.GetComponent<Tilemap>().CellToWorld(new Vector3Int((int)startCenter.x, (int)startCenter.y, 0));
 
         // Draw lines to all midpoints of rooms that are not connected
-
-        Room closestRoom = new Room();
+        Room closestRoom = null;
         Vector2 closestRoomMidPnt = Vector2.zero;
         float minDistance = float.MaxValue;
 
@@ -269,7 +274,7 @@ public class MapGenerator : MonoBehaviour
                 Vector3 center = room.gameObject.GetComponent<Tilemap>().cellBounds.center;
                 Vector3 midPntInWorld = room.gameObject.GetComponent<Tilemap>().CellToWorld(new Vector3Int((int)center.x, (int)center.y, 0));
 
-                Debug.DrawLine(new Vector2(startMidPnt.x, startMidPnt.y), new Vector2(midPntInWorld.x, midPntInWorld.y), Color.blue, 3.0f);
+                //Debug.DrawLine(new Vector2(startMidPnt.x, startMidPnt.y), new Vector2(midPntInWorld.x, midPntInWorld.y), Color.blue, 3.0f);
 
                 // Calculate distances between rooms and get the closest room
                 float distance = Vector2.Distance(new Vector2(startMidPnt.x, startMidPnt.y), new Vector2(midPntInWorld.x, midPntInWorld.y));
@@ -282,37 +287,122 @@ public class MapGenerator : MonoBehaviour
             }
         }
 
-        // Get next room's width and height
+        // Get each room's edges
+        if (closestRoom == null)
+        {
+            return;
+        }
+
         Vector3Int roomSize = closestRoom.GetComponent<Tilemap>().size;
         int closestRoomWidth = roomSize.x;
         int closestRoomHeight = roomSize.y;
 
-        Debug.Log(closestRoom + " -- " + roomSize + " -- " + closestRoomMidPnt);
+        Line closestBotLine = new Line { 
+            pointA = new Vector2((closestRoomMidPnt.x - closestRoomWidth / 2) + 1, (closestRoomMidPnt.y - closestRoomHeight / 2) + 1),
+            pointB = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 1, (closestRoomMidPnt.y - closestRoomHeight / 2) + 1)
+        };
+        Line closestTopLine = new Line
+        {
+            pointA = new Vector2((closestRoomMidPnt.x - closestRoomWidth / 2) + 1, (closestRoomMidPnt.y + closestRoomHeight / 2) - 1),
+            pointB = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 1, (closestRoomMidPnt.y + closestRoomHeight / 2) - 1)
+        };
+        Line closestLeftLine = new Line
+        {
+            pointA = new Vector2((closestRoomMidPnt.x - closestRoomWidth / 2) + 1, (closestRoomMidPnt.y + closestRoomHeight / 2) - 1),
+            pointB = new Vector2((closestRoomMidPnt.x - closestRoomWidth / 2) + 1, (closestRoomMidPnt.y - closestRoomHeight / 2) + 1)
+        };
+        Line closestRightLine = new Line
+        {
+            pointA = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 1, (closestRoomMidPnt.y + closestRoomHeight / 2) - 1),
+            pointB = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 1, (closestRoomMidPnt.y - closestRoomHeight / 2) + 1)
+        };
+
+        Vector3Int startRoomSize = startRoom.GetComponent<Tilemap>().size;
+        int startRoomWidth = startRoomSize.x;
+        int startRoomHeight = startRoomSize.y;
+
+        Line startBotLine = new Line
+        {
+            pointA = new Vector2((startMidPnt.x - startRoomWidth / 2) + 1, (startMidPnt.y - startRoomHeight / 2) + 1),
+            pointB = new Vector2((startMidPnt.x + startRoomWidth / 2) - 1, (startMidPnt.y - startRoomHeight / 2) + 1)
+        };
+        Line startTopLine = new Line
+        {
+            pointA = new Vector2((startMidPnt.x - startRoomWidth / 2) + 1, (startMidPnt.y + startRoomHeight / 2) - 1),
+            pointB = new Vector2((startMidPnt.x + startRoomWidth / 2) - 1, (startMidPnt.y + startRoomHeight / 2) - 1)
+        };
+        Line startLeftLine = new Line
+        {
+            pointA = new Vector2((startMidPnt.x - startRoomWidth / 2) + 1, (startMidPnt.y + startRoomHeight / 2) - 1),
+            pointB = new Vector2((startMidPnt.x - startRoomWidth / 2) + 1, (startMidPnt.y - startRoomHeight / 2) + 1)
+        };
+        Line startRightLine = new Line
+        {
+            pointA = new Vector2((startMidPnt.x + startRoomWidth / 2) - 1, (startMidPnt.y + startRoomHeight / 2) - 1),
+            pointB = new Vector2((startMidPnt.x + startRoomWidth / 2) - 1, (startMidPnt.y - startRoomHeight / 2) + 1)
+        };
+
         Debug.DrawLine(new Vector2(startMidPnt.x, startMidPnt.y), closestRoomMidPnt, Color.green, 3.0f);
 
         // DETERMINE ROUTE
 
-        // If starting room's x-coord is within next room's width
-        //if (startMidPnt.x > closestRoomWidth / 2)
+        // If starting room's horizontal lines overlap
 
-        // -- If next room is positioned above 
-        // ---- Build vertically up from starting midpoint(?)
-        // -- Else if next room is positioned below
-        // ---- Build vertically down from starting midpoint(?)
+        float rangeXfrom = Mathf.Max(closestBotLine.pointA.x, startBotLine.pointA.x);
+        float rangeXto = Mathf.Min(closestBotLine.pointB.x, startBotLine.pointB.x);
 
-        // If starting room's y-coord is within next room's height
-        // -- If next room is positioned to the right
-        // ---- Build horizontally right from starting midpoint(?)
-        // -- Else if next room is positioned to the left
-        // ---- Build horizontally left from starting midpoint(?)
+        float rangeYfrom = Mathf.Max(closestLeftLine.pointA.y, startLeftLine.pointA.y);
+        float rangeYto = Mathf.Min(closestLeftLine.pointB.y, startLeftLine.pointB.y);
 
-        // Else
-        // -- If x distance is > y distance
-        // ---- Start building out horizontally (x)
-        // -- Else
-        // ---- Start building out vertically (y)
+        // DRAWS UP AND DOWN
+        if (rangeXfrom < rangeXto)
+        {
+            float pathPosX = Random.Range(rangeXfrom, rangeXto);
+            Debug.Log(pathPosX);
 
-        // Repeat until all rooms have been visited
+            if (closestBotLine.pointB.y < startBotLine.pointA.y)
+            {
+                Debug.DrawLine(new Vector2(pathPosX, closestBotLine.pointB.y), new Vector2(pathPosX, startBotLine.pointA.y), Color.blue, 3.0f);
+            }
+            else
+            {
+                Debug.DrawLine(new Vector2(pathPosX, closestBotLine.pointA.y), new Vector2(pathPosX, startBotLine.pointB.y), Color.blue, 3.0f);
+            }
+        }
+
+        // If starting room's vertical lines overlap
+
+        // DRAWS LEFT AND RIGHT
+        else if (rangeYfrom < rangeYto)
+        {
+            float pathPosY = Random.Range(rangeYfrom, rangeYto);
+            Debug.Log(pathPosY);
+
+            if (closestLeftLine.pointB.x < startLeftLine.pointA.x)
+            {
+                Debug.DrawLine(new Vector2(closestLeftLine.pointB.x, pathPosY), new Vector2(startLeftLine.pointA.x, pathPosY), Color.yellow, 3.0f);
+            }
+            else
+            {
+                Debug.DrawLine(new Vector2(closestLeftLine.pointA.x, pathPosY), new Vector2(startLeftLine.pointB.x, pathPosY), Color.yellow, 3.0f);
+            }
+        }
+    }
+
+    public static Vector2 GetIntersectionPoint(Line a, Line b)
+    {
+        //y = kx + m;
+        //k = (y2 - y1) / (x2 - x1)
+        float kA = (a.pointB.y - a.pointA.y) / (a.pointB.x - a.pointA.x);
+        float kB = (b.pointB.y - b.pointB.y) / (b.pointB.x - b.pointA.x);
+
+        //m = y - k * x
+        float mA = a.pointA.y - kA * a.pointA.x;
+        float mB = b.pointA.y - kB * b.pointA.x;
+
+        float x = (mB - mA) / (kA - kB);
+        float y = kA * x + mA;
+        return new Vector2(x, y);
     }
 
     public void GenerateCorridors2()
