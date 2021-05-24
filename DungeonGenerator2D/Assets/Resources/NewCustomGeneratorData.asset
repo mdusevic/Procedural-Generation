@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf3b8d4b1a3404e48a429f53bd1e185a, type: 3}
   m_Name: NewCustomGeneratorData
   m_EditorClassIdentifier: 
-  m_optionalEnabled: 0
+  m_optionalEnabled: 1
   m_voidGenTriggered: 1
   m_roomGenTriggered: 1
   m_setupComplete: 1

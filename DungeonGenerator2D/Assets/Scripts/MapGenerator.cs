@@ -88,17 +88,7 @@ public class MapGenerator : MonoBehaviour
     [SerializeField]
     public Tile corridorTile = null;
 
-    public Tile buildTile = null;
-
-    // Used to determine whether a node has been traversed
-    private List<Node> visited = new List<Node>();
-
-    private bool hasFoundNeighbour = false;
-    private bool noValidTiles = false;
-
     public int totalCorridorLimit = 10;
-
-    private readonly Vector2Int[] directions = { new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1) };
 
     #endregion
 
@@ -243,30 +233,29 @@ public class MapGenerator : MonoBehaviour
             return;
         }
 
-        // VARIABLES
+        // Lists to store rooms depending on their state
+        List<Room> rooms = new List<Room>();
         List<Room> connectedRooms = new List<Room>();
 
         // Resets the tilemap on each generation
         ResetCorridors();
 
         // Find all rooms in scene
-        Room[] rooms = (Room[])FindObjectsOfType(typeof(Room));
-
-        while (rooms.Length != 0)
+        foreach (Room room in FindObjectsOfType(typeof(Room)))
         {
-            // Pick one from random
-            int roomID = Random.Range(0, rooms.Length);
-            Room startRoom = rooms[roomID];
+            rooms.Add(room);
+        }
 
-            // Add to connected rooms list
-            connectedRooms.Add(startRoom);
-            rooms = rooms.Where((source, index) => index != roomID).ToArray();
+        // Pick one from random
+        int roomID = Random.Range(0, rooms.Count);
+        Room startRoom = rooms[roomID];
 
-            if (rooms.Length <= 0)
-            {
-                return;
-            }
+        // Add to connected rooms list
+        connectedRooms.Add(startRoom);
+        rooms.Remove(startRoom);
 
+        while (rooms.Count != 0)
+        {
             // Get the starting room's midpoint
             Vector3 startCenter = startRoom.gameObject.GetComponent<Tilemap>().cellBounds.center;
             Vector3 midPnt = startRoom.gameObject.GetComponent<Tilemap>().CellToWorld(new Vector3Int((int)startCenter.x, (int)startCenter.y, 0));
@@ -283,8 +272,6 @@ public class MapGenerator : MonoBehaviour
                 {
                     Vector3 center = room.gameObject.GetComponent<Tilemap>().cellBounds.center;
                     Vector3 midPntInWorld = room.gameObject.GetComponent<Tilemap>().CellToWorld(new Vector3Int((int)center.x, (int)center.y, 0));
-
-                    //Debug.DrawLine(new Vector2(startMidPnt.x, startMidPnt.y), new Vector2(midPntInWorld.x, midPntInWorld.y), Color.blue, 3.0f);
 
                     // Calculate distances between rooms and get the closest room
                     float distance = Vector2.Distance(new Vector2(startMidPnt.x, startMidPnt.y), new Vector2(midPntInWorld.x, midPntInWorld.y));
@@ -328,6 +315,11 @@ public class MapGenerator : MonoBehaviour
                 pointB = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 1, (closestRoomMidPnt.y - closestRoomHeight / 2) + 1)
             };
 
+            Debug.DrawLine(closestBotLine.pointA, closestBotLine.pointB, Color.green, 3.0f);
+            Debug.DrawLine(closestTopLine.pointA, closestTopLine.pointB, Color.green, 3.0f);
+            Debug.DrawLine(closestLeftLine.pointA, closestLeftLine.pointB, Color.green, 3.0f);
+            Debug.DrawLine(closestRightLine.pointA, closestRightLine.pointB, Color.green, 3.0f);
+
             Vector3Int startRoomSize = startRoom.GetComponent<Tilemap>().size;
             int startRoomWidth = startRoomSize.x;
             int startRoomHeight = startRoomSize.y;
@@ -353,71 +345,48 @@ public class MapGenerator : MonoBehaviour
                 pointB = new Vector2((startMidPnt.x + startRoomWidth / 2) - 1, (startMidPnt.y - startRoomHeight / 2) + 1)
             };
 
-            //Debug.DrawLine(new Vector2(startMidPnt.x, startMidPnt.y), closestRoomMidPnt, Color.green, 3.0f);
+            Debug.DrawLine(startBotLine.pointA, startBotLine.pointB, Color.yellow, 3.0f);
+            Debug.DrawLine(startTopLine.pointA, startTopLine.pointB, Color.yellow, 3.0f);
+            Debug.DrawLine(startLeftLine.pointA, startLeftLine.pointB, Color.yellow, 3.0f);
+            Debug.DrawLine(startRightLine.pointA, startRightLine.pointB, Color.yellow, 3.0f);
 
             // DETERMINE ROUTE
 
-            // If true, build vertical corridor upwards
-            if (IsOnLine(closestBotLine, new Vector2(startTopLine.pointA.x, closestBotLine.pointA.y)) ||
-                IsOnLine(closestBotLine, new Vector2(startTopLine.pointB.x, closestBotLine.pointA.y)))
+            // Calculate midpoint between each room's midpoints
+            Vector2Int roomsMidPnt = new Vector2Int((startMidPnt.x + closestRoomMidPnt.x) / 2, (startMidPnt.y + closestRoomMidPnt.y) / 2);
+
+            Debug.DrawLine(closestRoomMidPnt, new Vector3(roomsMidPnt.x, roomsMidPnt.y, 0), Color.red, 3.0f);
+
+            // Midpoint between rooms are closer vertically
+            if (IsOnLine(startTopLine, new Vector2(roomsMidPnt.x, startTopLine.pointA.y)) &&
+                IsOnLine(closestBotLine, new Vector2(roomsMidPnt.x, closestBotLine.pointA.y)))
             {
-                Debug.Log("build up");
-
-                Vector3Int randStartPnt = GetRandomOverlapPoint(startTopLine, closestBotLine);
-                BuildCorridorVertical(randStartPnt, new Vector3Int(randStartPnt.x, closestRoomMidPnt.y, 0));
-
-                //BuildCorridorVertical(new Vector3Int(closestRoomMidPnt.x, startMidPnt.y, 0), closestRoomMidPnt);
+                BuildCorridorVertical(new Vector2Int(roomsMidPnt.x, startMidPnt.y), new Vector2Int(roomsMidPnt.x, closestRoomMidPnt.y));
             }
-            // If true, build vertical corridor downwards
-            else if (IsOnLine(closestTopLine, new Vector2(startBotLine.pointA.x, closestTopLine.pointA.y)) ||
-                     IsOnLine(closestTopLine, new Vector2(startBotLine.pointB.x, closestTopLine.pointA.y)))
+            // Midpoint between rooms are closer horizontally
+            else if (IsOnLine(startRightLine, new Vector2(startRightLine.pointA.x, roomsMidPnt.y)) &&
+                     IsOnLine(closestLeftLine, new Vector2(closestLeftLine.pointA.x, roomsMidPnt.y)))
             {
-                Debug.Log("build down");
-
-                Vector3Int randStartPnt = GetRandomOverlapPoint(startBotLine, closestTopLine);
-                BuildCorridorVertical(randStartPnt, new Vector3Int(randStartPnt.x, closestRoomMidPnt.y, 0));
-
-                //BuildCorridorVertical(new Vector3Int(closestRoomMidPnt.x, startMidPnt.y, 0), closestRoomMidPnt);
-            }
-            // If true, build horizontal corridor to the right
-            else if (IsOnLine(closestLeftLine, new Vector2(closestLeftLine.pointA.x, startRightLine.pointA.y)) ||
-                     IsOnLine(closestLeftLine, new Vector2(closestLeftLine.pointA.x, startRightLine.pointB.y)))
-            {
-                Debug.Log("build right");
-
-                Vector3Int randStartPnt = GetRandomOverlapPoint(startRightLine, closestLeftLine);
-                BuildCorridorVertical(new Vector3Int(closestRoomMidPnt.x, randStartPnt.y, 0), randStartPnt);
-
-                //BuildCorridorHorizontal(startMidPnt, new Vector3Int(closestRoomMidPnt.x, startMidPnt.y, 0));
-            }
-            // If true, build horizontal corridor to the left
-            else if (IsOnLine(closestRightLine, new Vector2(closestRightLine.pointA.x, startLeftLine.pointA.y)) ||
-                     IsOnLine(closestRightLine, new Vector2(closestRightLine.pointA.x, startLeftLine.pointB.y)))
-            {
-                Debug.Log("build left");
-
-                Vector3Int randStartPnt = GetRandomOverlapPoint(startLeftLine, closestRightLine);
-                BuildCorridorVertical(new Vector3Int(closestRoomMidPnt.x, randStartPnt.y, 0), randStartPnt);
-
-                //BuildCorridorHorizontal(startMidPnt, new Vector3Int(closestRoomMidPnt.x, startMidPnt.y, 0));
+                BuildCorridorHorizontal(new Vector2Int(startMidPnt.x, roomsMidPnt.y), new Vector2Int(closestRoomMidPnt.x, roomsMidPnt.y));
             }
             // Otherwise, build L-shaped corridor
             else
             {
-                Debug.Log("L-shape corridor");
-
-                BuildCorridorHorizontal(startMidPnt, new Vector3Int(closestRoomMidPnt.x, startMidPnt.y, 0));
-                BuildCorridorVertical(new Vector3Int(closestRoomMidPnt.x, startMidPnt.y, 0), closestRoomMidPnt);
+                BuildCorridorLShape(new Vector2Int(startMidPnt.x, startMidPnt.y), new Vector2Int(closestRoomMidPnt.x, closestRoomMidPnt.y));
             }
+
+            rooms.Remove(closestRoom);
+            connectedRooms.Add(closestRoom);
+            startRoom = closestRoom;
         }
     }
 
     public static bool IsOnLine(Line line, Vector2 point)
     {
-        if (line.pointA == point || line.pointB == point)
-        {
-            return false;
-        }
+        //if (line.pointA == point || line.pointB == point)
+        //{
+        //    return false;
+        //}
 
         return Vector2.Distance(line.pointA, point) + Vector2.Distance(line.pointB, point) == Vector2.Distance(line.pointA, line.pointB);
     }
@@ -426,13 +395,13 @@ public class MapGenerator : MonoBehaviour
     {
         Vector3Int newPoint = Vector3Int.zero;
         bool isValidPoint = false;
-        bool isVerticalLine = false;
+        bool isEdgeVertical = false;
 
         if (startRoomLine.pointA.x == startRoomLine.pointB.x && nextRoomLine.pointA.x == nextRoomLine.pointB.x)
         {
-            isVerticalLine = true;
+            isEdgeVertical = true;
         }
-        
+
         while (!isValidPoint)
         {
             // Pick a random point along the starting room's given edge
@@ -440,20 +409,28 @@ public class MapGenerator : MonoBehaviour
             int yPos = (int)Random.Range(startRoomLine.pointA.y, startRoomLine.pointB.y);
             newPoint = new Vector3Int(xPos, yPos, 0);
 
-            if (isVerticalLine)
+            if (isEdgeVertical)
             {
                 // Once the point is picked check if in overlap range
-                if (IsOnLine(startRoomLine, new Vector2(startRoomLine.pointA.x, newPoint.y)) && IsOnLine(nextRoomLine, new Vector2(nextRoomLine.pointA.x, newPoint.y)))
+                if (IsOnLine(startRoomLine, new Vector2(startRoomLine.pointA.x, newPoint.y)))
                 {
-                    isValidPoint = true;
+                    if (IsOnLine(nextRoomLine, new Vector2(nextRoomLine.pointA.x, newPoint.y)))
+                    {
+                        isValidPoint = true;
+                        break;
+                    }
                 }
             }
             else
             {
                 // Once the point is picked check if in overlap range
-                if (IsOnLine(startRoomLine, new Vector2(newPoint.x, startRoomLine.pointA.y)) && IsOnLine(nextRoomLine, new Vector2(newPoint.x, nextRoomLine.pointA.y)))
+                if (IsOnLine(startRoomLine, new Vector2(newPoint.x, startRoomLine.pointA.y)))
                 {
-                    isValidPoint = true;
+                    if (IsOnLine(nextRoomLine, new Vector2(newPoint.x, nextRoomLine.pointA.y)))
+                    {
+                        isValidPoint = true;
+                        break;
+                    }
                 }
             }
         }
@@ -461,15 +438,17 @@ public class MapGenerator : MonoBehaviour
         return newPoint;
     }
 
-    public void BuildCorridorHorizontal(Vector3Int startPoint, Vector3Int endPoint)
+    public void BuildCorridorHorizontal(Vector2Int startPoint, Vector2Int endPoint)
     {
+        // Left
         if (startPoint.x > endPoint.x)
         {
             for (int i = startPoint.x; i > endPoint.x - 1; i--)
             {
-                corridorTilemap.SetTile(new Vector3Int(i, startPoint.y, 0), corridorTile);
+                corridorTilemap.SetTile(new Vector3Int(i, startPoint.y - 1, 0), corridorTile);
             }
         }
+        // Right
         else if (endPoint.x > startPoint.x)
         {
             for (int i = startPoint.x; i < endPoint.x + 1; i++)
@@ -479,15 +458,17 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
-    public void BuildCorridorVertical(Vector3Int startPoint, Vector3Int endPoint)
+    public void BuildCorridorVertical(Vector2Int startPoint, Vector2Int endPoint)
     {
+        // Down
         if (startPoint.y > endPoint.y)
         {
             for (int i = startPoint.y; i > endPoint.y - 1; i--)
             {
-                corridorTilemap.SetTile(new Vector3Int(startPoint.x, i, 0), corridorTile);
+                corridorTilemap.SetTile(new Vector3Int(startPoint.x - 1, i, 0), corridorTile);
             }
         }
+        // Up
         else if (endPoint.y > startPoint.y)
         {
             for (int i = startPoint.y; i < endPoint.y + 1; i++)
@@ -497,184 +478,47 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
-    public void GenerateCorridors2()
+    public void BuildCorridorLShape(Vector2Int startMidPnt, Vector2Int endMidPnt)
     {
-        if (corridorTile == null && corridorTilemap == null)
+        Vector2Int newStart = Vector2Int.zero;
+
+        if (startMidPnt.x > endMidPnt.x)
         {
-            return;
-        }
-
-        ResetCorridors();
-
-        bool isFinished = false;
-        int corridorFails = 0;
-        int corridorCount = 0;
-
-        Stack<Node> stack = new Stack<Node>();
-
-        Node start = new Node();
-        Node current = new Node();
-        Vector2Int corridorDir = new Vector2Int();
-
-        SetupCorridor(ref start, ref current, ref corridorDir);
-        visited.Add(start);
-        stack.Push(start);
-
-        do
-        {
-            if (corridorFails > 60 || corridorCount == totalCorridorLimit)
+            for (int i = startMidPnt.x; i > endMidPnt.x - 1; i--)
             {
-                isFinished = true;
-            }
-
-            Node next = GetUnvisitedNeighbour(corridorTilemap, current.m_position, corridorDir);
-
-            if (!hasFoundNeighbour)
-            {
-                while (stack.Count == 0)
+                corridorTilemap.SetTile(new Vector3Int(i, startMidPnt.y, 0), corridorTile);
+                if (i == endMidPnt.x)
                 {
-                    SetupCorridor(ref start, ref current, ref corridorDir);
-
-                    if (noValidTiles)
-                    {
-                        corridorFails++;
-                    }
-                    else
-                    {
-                        visited.Add(start);
-                        stack.Push(start);
-                        break;
-                    }
-                }
-
-                if (stack.Count > 0)
-                {
-                    Node prev = stack.Pop();
-                    next = prev;
-
-                    if (next.m_position == start.m_position)
-                    {
-                        current = next;
-                        corridorDir = GetRandomCorridorDirection();
-                        corridorCount++;
-                    }
+                    newStart = new Vector2Int(endMidPnt.x, startMidPnt.y);
                 }
             }
-            else if (hasFoundNeighbour)
-            {
-                current = next;
-                visited.Add(current);
-                stack.Push(current);
-
-                corridorTilemap.SetTile(current.m_position, corridorTile);
-            }
-
-            //Debug.Log(current.m_position + " " + corridorFails);
-
-        } while (!isFinished && corridorFails < 60);
-    }
-
-    private Node GetCorridorStartTile()
-    {
-        noValidTiles = false;
-        Node start = new Node();
-        Vector2Int newTilePos;
-        bool isValidTile = false;
-        int fails = 0;
-
-        do
-        {
-            int tilePosX = Random.Range(-mapSize.x / 2 + 1, mapSize.x / 2 - 1);
-            int tilePosY = Random.Range(-mapSize.y / 2 + 1, mapSize.y / 2 - 1);
-
-            newTilePos = new Vector2Int(tilePosX, tilePosY);
-
-            int layerMask = 1 << 8;
-            Collider2D[] overlapObj = Physics2D.OverlapBoxAll(newTilePos, new Vector2(1, 1), 0, layerMask);
-
-            // If no overlaps have been detected in the layermask
-            if (overlapObj.Length == 0)
-            {
-                // Location is deemed valid and we are no longer in do/while loop
-                isValidTile = true;
-
-                fails = 0;
-            }
-            else if (overlapObj.Length > 0)
-            {
-                // Fail safe is increased
-                fails++;
-            }
-
-        } while (!isValidTile && fails < 50 && !noValidTiles);
-
-        if (fails == 50)
-        {
-            noValidTiles = true;
-            return start;
         }
-
-        // Assign starting tile
-        Tile startTile = (Tile)corridorTilemap.GetTile(new Vector3Int(newTilePos.x, newTilePos.y, 0));
-        start.m_tile = startTile;
-        start.m_position = new Vector3Int(newTilePos.x, newTilePos.y, 0);
-
-        if (visited.Contains(start))
+        else if (endMidPnt.x > startMidPnt.x)
         {
-            noValidTiles = true;
-            return start;
-        }
-
-        return start;
-    }
-
-    private void SetupCorridor(ref Node start, ref Node current, ref Vector2Int direction)
-    {
-        start = GetCorridorStartTile();
-
-        if (noValidTiles)
-        {
-            return;
-        }
-
-        corridorTilemap.SetTile(start.m_position, corridorTile);
-        current = start;
-        direction = GetRandomCorridorDirection();
-    }
-
-    private Vector2Int GetRandomCorridorDirection()
-    {
-        int index = Random.Range(0, directions.Length);
-        Vector2Int newDir = directions[index];
-
-        return newDir;
-    }
-
-    private Node GetUnvisitedNeighbour(Tilemap tilemap, Vector3Int originalPos, Vector2Int direction)
-    {
-        hasFoundNeighbour = false;
-        Vector3Int next = new Vector3Int(originalPos.x + direction.x, originalPos.y + direction.y, 0);
-        Tile nextTile = (Tile)tilemap.GetTile(next);
-
-        Node neighbour = new Node { m_tile = nextTile, m_position = next };
-
-        if (neighbour.m_position.x >= -mapSize.x / 2 + (direction.x < 0 ? 1f : 0) && neighbour.m_position.x <= mapSize.x / 2 - (direction.x < 0 ? 1f : 0))
-        {
-            if (neighbour.m_position.y <= mapSize.y / 2 - (direction.y < 0 ? 1f : 0) && neighbour.m_position.y >= -mapSize.y / 2 + (direction.y < 0 ? 1f : 0))
+            for (int i = startMidPnt.x; i < endMidPnt.x + 1; i++)
             {
-                int layerMask = 1 << 8;
-                RaycastHit2D hit = Physics2D.Linecast(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), layerMask);
-
-                //Debug.DrawLine(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), Color.blue, 3.0f);
-
-                if (hit.collider == null)
+                corridorTilemap.SetTile(new Vector3Int(i, startMidPnt.y, 0), corridorTile);
+                if (i == endMidPnt.x)
                 {
-                    hasFoundNeighbour = true;
+                    newStart = new Vector2Int(endMidPnt.x, startMidPnt.y);
                 }
             }
         }
 
-        return neighbour;
+        if (startMidPnt.y > endMidPnt.y)
+        {
+            for (int i = newStart.y; i > endMidPnt.y - 1; i--)
+            {
+                corridorTilemap.SetTile(new Vector3Int(newStart.x, i, 0), corridorTile);
+            }
+        }
+        else if (endMidPnt.y > startMidPnt.y)
+        {
+            for (int i = newStart.y; i < endMidPnt.y + 1; i++)
+            {
+                corridorTilemap.SetTile(new Vector3Int(newStart.x, i, 0), corridorTile);
+            }
+        }
     }
 
     private void GenerateDoors()
@@ -708,9 +552,6 @@ public class MapGenerator : MonoBehaviour
         if (corridorTilemap != null)
         {
             corridorTilemap.ClearAllTiles();
-            visited.Clear();
-            noValidTiles = false;
-            hasFoundNeighbour = false;
         }
     }
 
