@@ -4,17 +4,29 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
+public struct TileCoord
+{
+    public int xPos;
+    public int yPos;
+
+    public TileCoord(int x, int y)
+    {
+        xPos = x;
+        yPos = y;
+    }
+}
+
 public struct Node
 {
     public Tile m_tile;
     public Vector3Int m_position;
 }
+
 public struct Line
 {
     public Vector2 pointA;
     public Vector2 pointB;
 }
-
 
 [ExecuteInEditMode]
 public class MapGenerator : MonoBehaviour
@@ -88,7 +100,19 @@ public class MapGenerator : MonoBehaviour
     [SerializeField]
     public Tile corridorTile = null;
 
-    public int totalCorridorLimit = 10;
+    private readonly Vector2Int[] directions = { new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1) };
+
+    public int borderWidth = 0;
+    public int borderHeight = 0;
+
+    public string seed;
+    public bool enableRandomSeed = false;
+
+    [Range(0, 80)]
+    public float randomFillPercent;
+    public int smoothTimes = 5;
+
+    int[,] map;
 
     #endregion
 
@@ -128,7 +152,6 @@ public class MapGenerator : MonoBehaviour
         {
             // Resets rooms and corridors each time
             ResetRooms();
-            ResetCorridors();
 
             int xSpawnPos;
             int ySpawnPos;
@@ -225,6 +248,200 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
+    public void GenerateCorridors2()
+    {
+        ResetCorridors();
+        GenerateMap();
+    }
+
+    public void UpdateTilemap()
+    {
+        corridorTilemap.transform.position = new Vector3(-mapSize.x / 2, -mapSize.y / 2, 0);
+
+        if (map != null)
+        {
+            for (int x = 0; x < mapSize.x; x++)
+            {
+                for (int y = 0; y < mapSize.y; y++)
+                {
+                    corridorTilemap.SetTile(new Vector3Int(x, y, 0), (map[x, y] == 1) ? null : corridorTile);
+                }
+            }
+        }
+    }
+
+    void GenerateMap()
+    {
+        map = new int[mapSize.x, mapSize.y];
+        RandomFillMap();
+
+        for (int i = 0; i < smoothTimes; i++)
+        {
+            SmoothMap();
+        }
+
+        ProcessMap();
+
+        UpdateTilemap();
+    }
+
+    void ProcessMap()
+    {
+        int regionCount = 0;
+
+        List<List<TileCoord>> corridorRegions = GetRegions(0);
+        int corridorThresholdSize = 50;
+
+        foreach (List<TileCoord> corridorRegion in corridorRegions)
+        {
+            if (corridorRegion.Count < corridorThresholdSize)
+            {
+                foreach (TileCoord tile in corridorRegion)
+                {
+                    map[tile.xPos, tile.yPos] = 1;
+                }
+            }
+            else
+            {
+                regionCount++;
+            }
+        }
+
+        Debug.Log("Region Count: " + regionCount);
+    }
+
+    List<List<TileCoord>> GetRegions(int tileType)
+    {
+        List<List<TileCoord>> regions = new List<List<TileCoord>>();
+        int[,] mapFlags = new int[mapSize.x, mapSize.y];
+
+        for (int x = 0; x < mapSize.x; x++)
+        {
+            for (int y = 0; y < mapSize.y; y++)
+            {
+                if (mapFlags[x, y] == 0 && map[x, y] == tileType)
+                {
+                    List<TileCoord> newRegion = GetRegionTiles(x, y);
+                    regions.Add(newRegion);
+
+                    foreach (TileCoord tile in newRegion)
+                    {
+                        mapFlags[tile.xPos, tile.yPos] = 1;
+                    }
+                }
+            }
+        }
+
+        return regions;
+    }
+
+    List<TileCoord> GetRegionTiles(int startX, int startY)
+    {
+        List<TileCoord> tiles = new List<TileCoord>();
+        int[,] mapFlags = new int[mapSize.x, mapSize.y];
+        int tileType = map[startX, startY];
+
+        Queue<TileCoord> queue = new Queue<TileCoord>();
+        queue.Enqueue(new TileCoord(startX, startY));
+        mapFlags[startX, startY] = 1;
+
+        while (queue.Count > 0)
+        {
+            TileCoord tile = queue.Dequeue();
+            tiles.Add(tile);
+
+            for (int x = tile.xPos - 1; x <= tile.xPos + 1; x++)
+            {
+                for (int y = tile.yPos - 1; y <= tile.yPos + 1; y++)
+                {
+                    if (IsInMapRange(x, y) && (y == tile.yPos || x == tile.xPos))
+                    {
+                        if (mapFlags[x, y] == 0 && map[x, y] == tileType)
+                        {
+                            mapFlags[x, y] = 1;
+                            queue.Enqueue(new TileCoord(x, y));
+                        }
+                    }
+                }
+            }
+        }
+
+        return tiles;
+    }
+
+    bool IsInMapRange(int x, int y)
+    {
+        return x >= 0 && x < mapSize.x && y >= 0 && y < mapSize.y;
+    }
+
+    void RandomFillMap()
+    {
+        if (enableRandomSeed)
+        {
+            seed = Time.time.ToString();
+        }
+        System.Random pseudoRandom = new System.Random(seed.GetHashCode());
+
+        for (int x = 0; x < mapSize.x; x++)
+        {
+            for (int y = 0; y < mapSize.y; y++)
+            {
+                if (x < borderWidth || x >= mapSize.x - borderWidth || y < borderHeight || y >= mapSize.y - borderHeight)
+                {
+                    map[x, y] = 1;
+                }
+                else
+                {
+                    map[x, y] = (pseudoRandom.Next(0, 100) < randomFillPercent) ? 1 : 0;
+                }
+            }
+        }
+    }
+
+    void SmoothMap()
+    {
+        for (int x = 0; x < mapSize.x; x++)
+        {
+            for (int y = 0; y < mapSize.y; y++)
+            {
+                int neighbourWallTiles = GetSurroundingWallCount(x, y);
+
+                if (neighbourWallTiles > 4)
+                {
+                    map[x, y] = 1;
+                }
+                else if (neighbourWallTiles < 4)
+                {
+                    map[x, y] = 0;
+                }
+            }
+        }
+    }
+
+    int GetSurroundingWallCount(int gridX, int gridY)
+    {
+        int wallCount = 0;
+        for (int neighbourX = gridX - 1; neighbourX <= gridX + 1; neighbourX++)
+        {
+            for (int neighbourY = gridY - 1; neighbourY <= gridY + 1; neighbourY++)
+            {
+                if (neighbourX >= 0 && neighbourX < mapSize.x && neighbourY >= 0 && neighbourY < mapSize.y)
+                {
+                    if (neighbourX != gridX || neighbourY != gridY)
+                    {
+                        wallCount += map[neighbourX, neighbourY];
+                    }
+                }
+                else
+                {
+                    wallCount++;
+                }
+            }
+        }
+
+        return wallCount;
+    }
+
     public void GenerateCorridors()
     {
         // Returns if no tile or tilemap is given
@@ -294,6 +511,17 @@ public class MapGenerator : MonoBehaviour
             int closestRoomWidth = roomSize.x;
             int closestRoomHeight = roomSize.y;
 
+            // If the room is rotated we need to change its sizing 
+            if (closestRoom.m_enableRoomRot == true)
+            {
+                if (closestRoom.transform.rotation == Quaternion.Euler(0, 0, 90) ||
+                    closestRoom.transform.rotation == Quaternion.Euler(0, 0, 270))
+                {
+                    closestRoomWidth = roomSize.y;
+                    closestRoomHeight = roomSize.x;
+                }
+            }
+
             Line closestBotLine = new Line
             {
                 pointA = new Vector2((closestRoomMidPnt.x - closestRoomWidth / 2) + 1, (closestRoomMidPnt.y - closestRoomHeight / 2) + 1),
@@ -323,6 +551,17 @@ public class MapGenerator : MonoBehaviour
             Vector3Int startRoomSize = startRoom.GetComponent<Tilemap>().size;
             int startRoomWidth = startRoomSize.x;
             int startRoomHeight = startRoomSize.y;
+
+            // If the room is rotated we need to change its sizing 
+            if (startRoom.m_enableRoomRot == true)
+            {
+                if (startRoom.transform.rotation == Quaternion.Euler(0, 0, 90) ||
+                    startRoom.transform.rotation == Quaternion.Euler(0, 0, 270))
+                {
+                    startRoomWidth = startRoomSize.y;
+                    startRoomHeight = startRoomSize.x;
+                }
+            }
 
             Line startBotLine = new Line
             {
@@ -375,6 +614,8 @@ public class MapGenerator : MonoBehaviour
                 BuildCorridorLShape(new Vector2Int(startMidPnt.x, startMidPnt.y), new Vector2Int(closestRoomMidPnt.x, closestRoomMidPnt.y));
             }
 
+            BuildCorridorLShape(new Vector2Int(startMidPnt.x, startMidPnt.y), new Vector2Int(closestRoomMidPnt.x, closestRoomMidPnt.y));
+
             rooms.Remove(closestRoom);
             connectedRooms.Add(closestRoom);
             startRoom = closestRoom;
@@ -383,10 +624,10 @@ public class MapGenerator : MonoBehaviour
 
     public static bool IsOnLine(Line line, Vector2 point)
     {
-        //if (line.pointA == point || line.pointB == point)
-        //{
-        //    return false;
-        //}
+        if (line.pointA == point || line.pointB == point)
+        {
+            return false;
+        }
 
         return Vector2.Distance(line.pointA, point) + Vector2.Distance(line.pointB, point) == Vector2.Distance(line.pointA, line.pointB);
     }
@@ -482,6 +723,7 @@ public class MapGenerator : MonoBehaviour
     {
         Vector2Int newStart = Vector2Int.zero;
 
+        // Left
         if (startMidPnt.x > endMidPnt.x)
         {
             for (int i = startMidPnt.x; i > endMidPnt.x - 1; i--)
@@ -493,6 +735,7 @@ public class MapGenerator : MonoBehaviour
                 }
             }
         }
+        // Right
         else if (endMidPnt.x > startMidPnt.x)
         {
             for (int i = startMidPnt.x; i < endMidPnt.x + 1; i++)
@@ -505,6 +748,7 @@ public class MapGenerator : MonoBehaviour
             }
         }
 
+        // Down
         if (startMidPnt.y > endMidPnt.y)
         {
             for (int i = newStart.y; i > endMidPnt.y - 1; i--)
@@ -512,6 +756,7 @@ public class MapGenerator : MonoBehaviour
                 corridorTilemap.SetTile(new Vector3Int(newStart.x, i, 0), corridorTile);
             }
         }
+        // Up
         else if (endMidPnt.y > startMidPnt.y)
         {
             for (int i = newStart.y; i < endMidPnt.y + 1; i++)
@@ -519,6 +764,95 @@ public class MapGenerator : MonoBehaviour
                 corridorTilemap.SetTile(new Vector3Int(newStart.x, i, 0), corridorTile);
             }
         }
+    }
+
+    private void CleanUpCorridors()
+    {
+        // If void tiles are provided
+        if (corridorTilemap != null)
+        {
+            // Loops through all the positions of the void tile map
+            for (int x = 0; x < mapSize.x; x++)
+            {
+                for (int y = 0; y < mapSize.y; y++)
+                {
+                    Vector3Int tilePos = new Vector3Int(-x + mapSize.x / 2, -y + mapSize.y / 2, 0);
+                    if (corridorTilemap.GetTile(tilePos) != null)
+                    {
+                        int wallCount = 0;
+                        foreach (Vector2Int dir in directions)
+                        {
+                            bool hitWall = false;
+
+                            if (hitWall)
+                            {
+                                wallCount++;
+
+                                if (wallCount == 2)
+                                {
+                                    corridorTilemap.SetTile(tilePos, null);
+                                }
+                            }
+                        }
+
+                        //Debug.DrawLine(new Vector3(tilePos.x + 0.5f, tilePos.y + 0.5f, 0), new Vector3(0, 0, 0), Color.magenta, 10);
+                    }
+
+                    //int layerMask = 1 << 8;
+                    //Collider2D[] overlapObj = Physics2D.OverlapBoxAll(roomPos, new Vector2Int(roomSize.x + roomMinDistance, roomSize.y + roomMinDistance), roomRot, layerMask);
+
+                    //// If no overlaps have been detected in the layermask
+                    //if (overlapObj.Length == 0)
+                    //{
+                    //    // Location is deemed valid and we are no longer in do/while loop
+                    //    isValidLocation = true;
+
+                    //    // Resets the fail safe
+                    //    fails = 0;
+                    //}
+                    //// Otherwise, if overlaps have been detected in the layermask
+                    //else if (overlapObj.Length > 0)
+                    //{
+                    //    // Fail safe is increased
+                    //    fails++;
+                    //}
+
+                    // Sets the tile at the current position to the randomly selected tile
+                    //voidTilemap.SetTile(new Vector3Int(-x + mapSize.x / 2, -y + mapSize.y / 2, 0), voidTiles[tileID]);
+                }
+            }
+        }
+    }
+
+    private int GetUnvisitedNeighbourCount(Tilemap tilemap, Vector3Int originalPos)
+    {
+        int wallCount = 0;
+        foreach (Vector2Int dir in directions)
+        {
+            Vector3Int next = new Vector3Int(originalPos.x + dir.x, originalPos.y + dir.y, 0);
+            Tile nextTile = (Tile)tilemap.GetTile(next);
+
+            Node neighbour = new Node { m_tile = nextTile, m_position = next };
+
+            if (neighbour.m_position.x >= -mapSize.x / 2 + (dir.x < 0 ? 1f : 0) && neighbour.m_position.x <= mapSize.x / 2 - (dir.x < 0 ? 1f : 0))
+            {
+                if (neighbour.m_position.y <= mapSize.y / 2 - (dir.y < 0 ? 1f : 0) && neighbour.m_position.y >= -mapSize.y / 2 + (dir.y < 0 ? 1f : 0))
+                {
+                    int layerMask = 1 << 8;
+
+                    RaycastHit2D hit = Physics2D.Linecast(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), layerMask);
+
+                    //Debug.DrawLine(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), Color.blue, 3.0f);
+
+                    if (hit.collider == null)
+                    {
+                        wallCount++;
+                    }
+                }
+            }
+        }
+
+        return wallCount;
     }
 
     private void GenerateDoors()

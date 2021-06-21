@@ -143,20 +143,20 @@ public class CustomEditor : EditorWindow
 
             if (m_data.m_voidGenTriggered)
             {
-                // Button to trigger room generation
-                if (GUILayout.Button(new GUIContent("Generate Rooms", "Randomly places rooms on the map.")))
+                // Button to trigger corridor generation
+                if (GUILayout.Button(new GUIContent("Generate Corridors", "Randomly places corridor on the map. NOTE: Generate after rooms have been created.")))
                 {
                     m_data.m_roomGenTriggered = true;
-                    m_MapGenScript.GenerateRooms();
+                    m_MapGenScript.GenerateCorridors();
                 }
             }
 
             if (m_data.m_roomGenTriggered)
             {
-                // Button to trigger corridor generation
-                if (GUILayout.Button(new GUIContent("Generate Corridors", "Randomly places corridor on the map. NOTE: Generate after rooms have been created.")))
+                // Button to trigger room generation
+                if (GUILayout.Button(new GUIContent("Generate Rooms", "Randomly places rooms on the map.")))
                 {
-                    m_MapGenScript.GenerateCorridors();
+                    m_MapGenScript.GenerateRooms();
                 }
             }
 
