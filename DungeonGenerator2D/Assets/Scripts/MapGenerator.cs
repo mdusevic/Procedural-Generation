@@ -4,22 +4,35 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
-public struct TileCoord
-{
-    public int xPos;
-    public int yPos;
-
-    public TileCoord(int x, int y)
-    {
-        xPos = x;
-        yPos = y;
-    }
-}
-
-public struct Node
+public class Node
 {
     public Tile m_tile;
-    public Vector3Int m_position;
+    public Vector2 m_position;
+    public Node m_prevNode;
+
+    public Node()
+    {
+
+    }
+
+    public Node(Tile a_tile, Vector2 a_position)
+    {
+        m_tile = a_tile;
+        m_position = a_position;
+        m_prevNode = null;
+    }
+
+    public Node(Tile a_tile, Vector2 a_position, Node a_prevTile)
+    {
+        m_tile = a_tile;
+        m_position = a_position;
+        m_prevNode = a_prevTile;
+    }
+
+    public Vector3Int TilePos()
+    {
+        return new Vector3Int(Mathf.RoundToInt(m_position.x), Mathf.RoundToInt(m_position.y), 0);
+    }
 }
 
 public struct Line
@@ -331,22 +344,22 @@ public class MapGenerator : MonoBehaviour
             Line closestBotLine = new Line
             {
                 pointA = new Vector2((closestRoomMidPnt.x - closestRoomWidth / 2) + 1, (closestRoomMidPnt.y - closestRoomHeight / 2) + 1),
-                pointB = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 1, (closestRoomMidPnt.y - closestRoomHeight / 2) + 1)
+                pointB = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 2, (closestRoomMidPnt.y - closestRoomHeight / 2) + 2)
             };
             Line closestTopLine = new Line
             {
                 pointA = new Vector2((closestRoomMidPnt.x - closestRoomWidth / 2) + 1, (closestRoomMidPnt.y + closestRoomHeight / 2) - 1),
-                pointB = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 1, (closestRoomMidPnt.y + closestRoomHeight / 2) - 1)
+                pointB = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 2, (closestRoomMidPnt.y + closestRoomHeight / 2) - 2)
             };
             Line closestLeftLine = new Line
             {
                 pointA = new Vector2((closestRoomMidPnt.x - closestRoomWidth / 2) + 1, (closestRoomMidPnt.y + closestRoomHeight / 2) - 1),
-                pointB = new Vector2((closestRoomMidPnt.x - closestRoomWidth / 2) + 1, (closestRoomMidPnt.y - closestRoomHeight / 2) + 1)
+                pointB = new Vector2((closestRoomMidPnt.x - closestRoomWidth / 2) + 2, (closestRoomMidPnt.y - closestRoomHeight / 2) + 2)
             };
             Line closestRightLine = new Line
             {
                 pointA = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 1, (closestRoomMidPnt.y + closestRoomHeight / 2) - 1),
-                pointB = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 1, (closestRoomMidPnt.y - closestRoomHeight / 2) + 1)
+                pointB = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 2, (closestRoomMidPnt.y - closestRoomHeight / 2) + 2)
             };
 
             Debug.DrawLine(closestBotLine.pointA, closestBotLine.pointB, Color.green, 3.0f);
@@ -372,22 +385,22 @@ public class MapGenerator : MonoBehaviour
             Line startBotLine = new Line
             {
                 pointA = new Vector2((startMidPnt.x - startRoomWidth / 2) + 1, (startMidPnt.y - startRoomHeight / 2) + 1),
-                pointB = new Vector2((startMidPnt.x + startRoomWidth / 2) - 1, (startMidPnt.y - startRoomHeight / 2) + 1)
+                pointB = new Vector2((startMidPnt.x + startRoomWidth / 2) - 2, (startMidPnt.y - startRoomHeight / 2) + 2)
             };
             Line startTopLine = new Line
             {
                 pointA = new Vector2((startMidPnt.x - startRoomWidth / 2) + 1, (startMidPnt.y + startRoomHeight / 2) - 1),
-                pointB = new Vector2((startMidPnt.x + startRoomWidth / 2) - 1, (startMidPnt.y + startRoomHeight / 2) - 1)
+                pointB = new Vector2((startMidPnt.x + startRoomWidth / 2) - 2, (startMidPnt.y + startRoomHeight / 2) - 2)
             };
             Line startLeftLine = new Line
             {
                 pointA = new Vector2((startMidPnt.x - startRoomWidth / 2) + 1, (startMidPnt.y + startRoomHeight / 2) - 1),
-                pointB = new Vector2((startMidPnt.x - startRoomWidth / 2) + 1, (startMidPnt.y - startRoomHeight / 2) + 1)
+                pointB = new Vector2((startMidPnt.x - startRoomWidth / 2) + 2, (startMidPnt.y - startRoomHeight / 2) + 2)
             };
             Line startRightLine = new Line
             {
                 pointA = new Vector2((startMidPnt.x + startRoomWidth / 2) - 1, (startMidPnt.y + startRoomHeight / 2) - 1),
-                pointB = new Vector2((startMidPnt.x + startRoomWidth / 2) - 1, (startMidPnt.y - startRoomHeight / 2) + 1)
+                pointB = new Vector2((startMidPnt.x + startRoomWidth / 2) - 2, (startMidPnt.y - startRoomHeight / 2) + 2)
             };
 
             Debug.DrawLine(startBotLine.pointA, startBotLine.pointB, Color.yellow, 3.0f);
@@ -572,93 +585,157 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
-    private void CleanUpCorridors()
+    public void NewBuildCorridors()
     {
-        // If void tiles are provided
-        if (corridorTilemap != null)
+        ResetCorridors();
+        bool hasDeadEnd = false;
+        int newStarts = 20;
+
+        for (int i = 0; i < newStarts; i++)
         {
-            // Loops through all the positions of the void tile map
-            for (int x = 0; x < mapSize.x; x++)
+            Node startTile = GetCorridorStart(corridorTilemap);
+
+            if (startTile == null)
             {
-                for (int y = 0; y < mapSize.y; y++)
+                return;
+            }
+
+            corridorTilemap.SetTile(startTile.TilePos(), corridorTile);
+            Node currentTile = startTile;
+
+            int newDir = Random.Range(0, directions.Length);
+            Vector2 buildDir = directions[newDir];
+
+            int iterations = 100;
+
+            if (mapSize.x > 100 || mapSize.y > 100)
+            {
+                iterations = 1000;
+            }
+
+            if (mapSize.x > 200 || mapSize.y > 200)
+            {
+                iterations = 10000;
+            }
+
+            for (int j = 0; j < iterations; j++)
+            {
+                Node neighbour = GetUnvisitedNeighbour(corridorTilemap, currentTile.m_position, buildDir);
+
+                //Node neighbourNextTile = GetUnvisitedNeighbour(corridorTilemap, neighbour.m_position, buildDir);
+
+                if (neighbour != null)
                 {
-                    Vector3Int tilePos = new Vector3Int(-x + mapSize.x / 2, -y + mapSize.y / 2, 0);
-                    if (corridorTilemap.GetTile(tilePos) != null)
+                    Node newTile = neighbour;
+                    newTile.m_prevNode = currentTile;
+                    corridorTilemap.SetTile(newTile.TilePos(), corridorTile);
+
+                    currentTile = newTile;
+                }
+                else
+                {
+                    List<Vector2> allDirections = GetValidDirections(corridorTilemap, currentTile.m_position);
+
+                    if (allDirections.Count == 0)
                     {
-                        int wallCount = 0;
-                        foreach (Vector2Int dir in directions)
-                        {
-                            bool hitWall = false;
-
-                            if (hitWall)
-                            {
-                                wallCount++;
-
-                                if (wallCount == 2)
-                                {
-                                    corridorTilemap.SetTile(tilePos, null);
-                                }
-                            }
-                        }
-
-                        //Debug.DrawLine(new Vector3(tilePos.x + 0.5f, tilePos.y + 0.5f, 0), new Vector3(0, 0, 0), Color.magenta, 10);
+                        Debug.Log("DEAD END");
+                        break;
                     }
-
-                    //int layerMask = 1 << 8;
-                    //Collider2D[] overlapObj = Physics2D.OverlapBoxAll(roomPos, new Vector2Int(roomSize.x + roomMinDistance, roomSize.y + roomMinDistance), roomRot, layerMask);
-
-                    //// If no overlaps have been detected in the layermask
-                    //if (overlapObj.Length == 0)
-                    //{
-                    //    // Location is deemed valid and we are no longer in do/while loop
-                    //    isValidLocation = true;
-
-                    //    // Resets the fail safe
-                    //    fails = 0;
-                    //}
-                    //// Otherwise, if overlaps have been detected in the layermask
-                    //else if (overlapObj.Length > 0)
-                    //{
-                    //    // Fail safe is increased
-                    //    fails++;
-                    //}
-
-                    // Sets the tile at the current position to the randomly selected tile
-                    //voidTilemap.SetTile(new Vector3Int(-x + mapSize.x / 2, -y + mapSize.y / 2, 0), voidTiles[tileID]);
+                    else
+                    {
+                        newDir = Random.Range(0, directions.Length);
+                        buildDir = directions[newDir];
+                    }
                 }
             }
         }
     }
 
-    private int GetUnvisitedNeighbourCount(Tilemap tilemap, Vector3Int originalPos)
+    private Node GetCorridorStart(Tilemap tilemap)
     {
-        int wallCount = 0;
+        Node node = new Node();
+        int fails = 0;
+
+        while (fails != 50)
+        {
+            float tilePosX = Random.Range(-mapSize.x / 2 + 1, mapSize.x / 2 - 1);
+            float tilePosY = Random.Range(-mapSize.y / 2 + 1, mapSize.y / 2 - 1);
+
+            Vector2 startTilePos = new Vector2(tilePosX, tilePosY);
+
+            int layerMask = 1 << 8;
+            Collider2D[] hit = Physics2D.OverlapBoxAll(startTilePos, new Vector2(1, 1), layerMask);
+
+            if (hit.Length == 0)
+            {
+                node.m_position = startTilePos;
+                node.m_tile = (Tile)corridorTilemap.GetTile(node.TilePos());
+                return node;
+            }
+
+            fails++;
+        }
+
+        return null;
+    }
+
+    private Node GetUnvisitedNeighbour(Tilemap tilemap, Vector2 originalPos, Vector2 direction)
+    {
+        Vector2 pos = new Vector2(originalPos.x + direction.x, originalPos.y + direction.y);
+        Vector3Int next = new Vector3Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y), 0);
+        Tile nextTile = (Tile)tilemap.GetTile(next);
+
+        Node neighbour = new Node(nextTile, pos);
+
+        if (neighbour.m_position.x >= -mapSize.x / 2 + (direction.x < 0 ? 1f : 0) && neighbour.m_position.x <= mapSize.x / 2 - (direction.x < 0 ? 1f : 0))
+        {
+            if (neighbour.m_position.y <= mapSize.y / 2 - (direction.y < 0 ? 1f : 0) && neighbour.m_position.y >= -mapSize.y / 2 + (direction.y < 0 ? 1f : 0))
+            {
+                int layerMask = 1 << 8;
+                RaycastHit2D hit = Physics2D.Linecast(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), layerMask);
+
+                //Debug.DrawLine(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), Color.green, 6.0f);
+
+                if (hit.collider == null)
+                {
+                    return neighbour;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private List<Vector2> GetValidDirections(Tilemap tilemap, Vector2 originalPos)
+    {
+        List<Vector2> validDirections = new List<Vector2>();
+
         foreach (Vector2Int dir in directions)
         {
-            Vector3Int next = new Vector3Int(originalPos.x + dir.x, originalPos.y + dir.y, 0);
+            Vector2 pos = new Vector2(originalPos.x + dir.x, originalPos.y + dir.y);
+            Vector3Int next = new Vector3Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y), 0);
             Tile nextTile = (Tile)tilemap.GetTile(next);
 
-            Node neighbour = new Node { m_tile = nextTile, m_position = next };
+            Node neighbour = new Node(nextTile, pos);
 
             if (neighbour.m_position.x >= -mapSize.x / 2 + (dir.x < 0 ? 1f : 0) && neighbour.m_position.x <= mapSize.x / 2 - (dir.x < 0 ? 1f : 0))
             {
                 if (neighbour.m_position.y <= mapSize.y / 2 - (dir.y < 0 ? 1f : 0) && neighbour.m_position.y >= -mapSize.y / 2 + (dir.y < 0 ? 1f : 0))
                 {
                     int layerMask = 1 << 8;
-
                     RaycastHit2D hit = Physics2D.Linecast(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), layerMask);
 
-                    //Debug.DrawLine(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), Color.blue, 3.0f);
+                    Debug.DrawLine(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), Color.blue, 3.0f);
 
                     if (hit.collider == null)
                     {
-                        wallCount++;
+                        validDirections.Add(dir);
                     }
                 }
             }
         }
 
-        return wallCount;
+        return validDirections;
     }
 
     private void GenerateDoors()

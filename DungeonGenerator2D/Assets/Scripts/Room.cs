@@ -17,6 +17,8 @@ public class Room : MonoBehaviour
 
     public int m_spawnedRooms = 0;
 
+    public Vector3Int m_midPoint;
+
     #endregion
 
     // When object is created in scene, colliders are attached
