@@ -87,6 +87,7 @@ public class CustomEditor : EditorWindow
         m_data.m_setupComplete = false;
         m_data.m_voidGenTriggered = false;
         m_data.m_roomGenTriggered = false;
+        m_data.m_corridorGenTriggered = false;
         m_data.m_mapLimits = new Vector2(0, 0);
         DestroyImmediate(m_SceneMapGenObj);
         m_data.m_MapGenObjID = -1;
@@ -156,7 +157,17 @@ public class CustomEditor : EditorWindow
                 // Button to trigger corridor generation
                 if (GUILayout.Button(new GUIContent("Generate Corridors", "Randomly places corridor on the map. NOTE: Generate after rooms have been created.")))
                 {
-                    m_MapGenScript.NewBuildCorridors();
+                    m_data.m_corridorGenTriggered = true;
+                    m_MapGenScript.GenerateCorridors();
+                }
+            }
+
+            if (m_data.m_corridorGenTriggered)
+            {
+                // Button to trigger door generation
+                if (GUILayout.Button(new GUIContent("Generate Doors", "Randomly places doors on the map. NOTE: Generate after corridors and rooms have been created.")))
+                {
+                    m_MapGenScript.GenerateDoors();
                 }
             }
 
@@ -171,6 +182,7 @@ public class CustomEditor : EditorWindow
             {
                 m_data.m_voidGenTriggered = false;
                 m_data.m_roomGenTriggered = false;
+                m_data.m_corridorGenTriggered = false;
                 m_MapGenScript.ResetMap();
             }
 

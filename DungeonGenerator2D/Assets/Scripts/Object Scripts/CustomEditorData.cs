@@ -29,6 +29,10 @@ public class CustomEditorData : ScriptableObject
 
     [HideInInspector]
     [SerializeField]
+    public bool m_corridorGenTriggered = false;
+
+    [HideInInspector]
+    [SerializeField]
     public bool m_setupComplete = false;
 
     [HideInInspector]

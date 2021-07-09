@@ -15,6 +15,7 @@ MonoBehaviour:
   m_optionalEnabled: 1
   m_voidGenTriggered: 1
   m_roomGenTriggered: 1
+  m_corridorGenTriggered: 1
   m_setupComplete: 1
-  m_mapLimits: {x: 50, y: 50}
+  m_mapLimits: {x: 60, y: 60}
   m_MapGenObjID: 0
