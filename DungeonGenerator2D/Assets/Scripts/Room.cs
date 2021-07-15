@@ -1,5 +1,16 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿/*
+ * File:	Room.cs
+ *
+ * Author: Mara Dusevic (s200494@students.aie.edu.au)
+ * Date Created: Friday 30 April 2021
+ * Date Last Modified: Thursday 15 July 2021
+ * 
+ * Attached to a tilemap of the room the user wants to
+ * create. Holds adjustable values needed for the map
+ * generator.
+ *
+ */
+
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
@@ -16,8 +27,6 @@ public class Room : MonoBehaviour
     public bool m_enableRoomRot = false;
 
     public int m_spawnedRooms = 0;
-
-    public Vector3Int m_midPoint;
 
     #endregion
 

@@ -1,8 +1,18 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿/*
+ * File:	CustomEditorData.cs
+ *
+ * Author: Mara Dusevic (s200494@students.aie.edu.au)
+ * Date Created: Thursday 29 April 2021
+ * Date Last Modified: Thursday 15 July 2021
+ * 
+ * Used to store custom editor window data within an
+ * scriptable object. Holds values that can be edited
+ * and read by the editor window.
+ *
+ */
+
 using UnityEngine;
 using UnityEditor.Callbacks;
-using UnityEditor;
 
 [CreateAssetMenu(
     fileName = "NewCustomGeneratorData",
@@ -26,10 +36,6 @@ public class CustomEditorData : ScriptableObject
     [HideInInspector]
     [SerializeField]
     public bool m_roomGenTriggered = false;
-
-    [HideInInspector]
-    [SerializeField]
-    public bool m_corridorGenTriggered = false;
 
     [HideInInspector]
     [SerializeField]

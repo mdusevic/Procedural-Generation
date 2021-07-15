@@ -1,4 +1,16 @@
-﻿using UnityEditor;
+﻿/*
+ * File:	CustomEditor.cs
+ *
+ * Author: Mara Dusevic (s200494@students.aie.edu.au)
+ * Date Created: Thursday 29 April 2021
+ * Date Last Modified: Thursday 15 July 2021
+ * 
+ * Creates an custom editor window to allow the user to
+ * generate the 2D dungeon map within their scene. 
+ *
+ */
+
+using UnityEditor;
 using UnityEngine;
 
 public class CustomEditor : EditorWindow
@@ -47,16 +59,16 @@ public class CustomEditor : EditorWindow
         // Loops through all objects in scene to create the highest ID available
         foreach (var obj in FindObjectsOfType<MapGenerator>())
         {
-            if (obj.ID > id)
+            if (obj.m_ID > id)
             {
-                id = obj.ID;
+                id = obj.m_ID;
             }
         }
 
         id++;
 
         // Assigns ID to object and saves it
-        m_MapGenScript.ID = id;
+        m_MapGenScript.m_ID = id;
         m_data.m_MapGenObjID = id;
 
         // Sets setup as completed
@@ -70,7 +82,7 @@ public class CustomEditor : EditorWindow
         foreach (var obj in FindObjectsOfType<MapGenerator>())
         {
             // If the object in scene has the same ID as the saved data
-            if (obj.ID == m_data.m_MapGenObjID)
+            if (obj.m_ID == m_data.m_MapGenObjID)
             {
                 // Sets editor variables to connect it with the object
                 m_MapGenScript = obj;
@@ -87,7 +99,6 @@ public class CustomEditor : EditorWindow
         m_data.m_setupComplete = false;
         m_data.m_voidGenTriggered = false;
         m_data.m_roomGenTriggered = false;
-        m_data.m_corridorGenTriggered = false;
         m_data.m_mapLimits = new Vector2(0, 0);
         DestroyImmediate(m_SceneMapGenObj);
         m_data.m_MapGenObjID = -1;
@@ -157,17 +168,7 @@ public class CustomEditor : EditorWindow
                 // Button to trigger corridor generation
                 if (GUILayout.Button(new GUIContent("Generate Corridors", "Randomly places corridor on the map. NOTE: Generate after rooms have been created.")))
                 {
-                    m_data.m_corridorGenTriggered = true;
                     m_MapGenScript.GenerateCorridors();
-                }
-            }
-
-            if (m_data.m_corridorGenTriggered)
-            {
-                // Button to trigger door generation
-                if (GUILayout.Button(new GUIContent("Generate Doors", "Randomly places doors on the map. NOTE: Generate after corridors and rooms have been created.")))
-                {
-                    m_MapGenScript.GenerateDoors();
                 }
             }
 
@@ -182,7 +183,6 @@ public class CustomEditor : EditorWindow
             {
                 m_data.m_voidGenTriggered = false;
                 m_data.m_roomGenTriggered = false;
-                m_data.m_corridorGenTriggered = false;
                 m_MapGenScript.ResetMap();
             }
 
@@ -191,9 +191,6 @@ public class CustomEditor : EditorWindow
             {
                 DeleteManager();
             }
-
-            m_data.m_optionalEnabled = EditorGUILayout.BeginToggleGroup("Optional Settings", m_data.m_optionalEnabled);
-            EditorGUILayout.EndToggleGroup();
         }
 
         // Saves data on UI changes

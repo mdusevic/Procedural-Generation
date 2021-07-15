@@ -1,39 +1,18 @@
-﻿using System.Collections;
+/*
+ * File:	MapGenerator.cs
+ *
+ * Author: Mara Dusevic (s200494@students.aie.edu.au)
+ * Date Created: Wednesday 28 April 2021
+ * Date Last Modified: Thursday 15 July 2021
+ * 
+ * Using the given values and objects, this script will
+ * generate a procedural 2D dungeon.
+ *
+ */
+
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.Tilemaps;
-
-public class Node
-{
-    public Tile m_tile;
-    public Vector2 m_position;
-    public Node m_prevNode;
-
-    public Node()
-    {
-
-    }
-
-    public Node(Tile a_tile, Vector2 a_position)
-    {
-        m_tile = a_tile;
-        m_position = a_position;
-        m_prevNode = null;
-    }
-
-    public Node(Tile a_tile, Vector2 a_position, Node a_prevTile)
-    {
-        m_tile = a_tile;
-        m_position = a_position;
-        m_prevNode = a_prevTile;
-    }
-
-    public Vector3Int TilePos()
-    {
-        return new Vector3Int(Mathf.RoundToInt(m_position.x), Mathf.RoundToInt(m_position.y), 0);
-    }
-}
 
 public struct Line
 {
@@ -50,16 +29,16 @@ public class MapGenerator : MonoBehaviour
 
     [SerializeField]
     [Tooltip("The ID to connect the manager to the custom editor.")]
-    public int ID;
+    public int m_ID;
 
     [SerializeField]
     [Tooltip("The grid in which all tilemaps will be attached to.")]
-    public Grid dungeonGrid = null;
+    public Grid m_dungeonGrid = null;
 
     // The size of the map
     [SerializeField]
     [HideInInspector]
-    public BoundsInt mapSize;
+    public BoundsInt m_mapSize;
 
     #endregion
 
@@ -70,11 +49,11 @@ public class MapGenerator : MonoBehaviour
 
     [SerializeField]
     [Tooltip("Void Tilemap used to create space around the dungeon")]
-    public Tilemap voidTilemap = null;
+    public Tilemap m_voidTilemap = null;
 
     [Tooltip("Textures used to fill the map's void spaces")]
     [SerializeField]
-    public Tile[] voidTiles = null;
+    public Tile[] m_voidTiles = null;
 
     #endregion
 
@@ -85,21 +64,18 @@ public class MapGenerator : MonoBehaviour
 
     [SerializeField]
     [Tooltip("All room prefabs to be spawned")]
-    private Room[] rooms = null;
-
-    [SerializeField]
-    public Tile roomWallTile = null;
+    private Room[] m_rooms = null;
 
     [SerializeField]
     [Tooltip("Maximum number of rooms that can be spawned")]
-    private int totalRoomLimit = 10;
+    private int m_totalRoomLimit = 10;
 
     [SerializeField]
     [Tooltip("Minimum distance allowed between rooms. NOTE: Rooms are alreading spawned with a one tile gap")]
-    public int roomMinDistance = 1;
+    public int m_roomMinDistance = 1;
 
     // Holds an array of rotations the room can be set to
-    private readonly int[] roomRotAngles = { 0, 90, 180, 270 };
+    private readonly int[] m_roomRotAngles = { 0, 90, 180, 270 };
 
     #endregion
 
@@ -110,52 +86,50 @@ public class MapGenerator : MonoBehaviour
 
     [SerializeField]
     [Tooltip("Corridor tilemap used to create the corridors connecting the rooms")]
-    public Tilemap corridorTilemap = null;
+    public Tilemap m_corridorTilemap = null;
 
     [Tooltip("Textures used to fill the map's corridors")]
     [SerializeField]
-    public Tile corridorTile = null;
-
-    [SerializeField]
-    public Tile buildTile = null;
-
-    private readonly Vector2Int[] directions = { new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1) };
+    public Tile m_corridorTile = null;
 
     #endregion
 
-    public void SetMapSize(Vector2 newMapSize)
+    // Sets the map's size
+    public void SetMapSize(Vector2 a_newMapSize)
     {
-        mapSize.x = (int)newMapSize.x;
-        mapSize.y = (int)newMapSize.y;
+        m_mapSize.x = (int)a_newMapSize.x;
+        m_mapSize.y = (int)a_newMapSize.y;
     }
 
+    // Creates the void tiles with a mixture of given tiles
     public void CreateVoidTiles()
     {
         // If void tiles are provided
-        if (voidTiles != null)
+        if (m_voidTiles != null)
         {
             // Resets the map entirely
             ResetMap();
 
             // Loops through all the positions of the void tile map
-            for (int x = 0; x < mapSize.x; x++)
+            for (int x = 0; x < m_mapSize.x; x++)
             {
-                for (int y = 0; y < mapSize.y; y++)
+                for (int y = 0; y < m_mapSize.y; y++)
                 {
                     // Gets a random tile from the given void tiles
-                    int tileID = Random.Range(0, voidTiles.Length);
+                    int tileID = Random.Range(0, m_voidTiles.Length);
 
                     // Sets the tile at the current position to the randomly selected tile
-                    voidTilemap.SetTile(new Vector3Int(-x + mapSize.x / 2, -y + mapSize.y / 2, 0), voidTiles[tileID]);
+                    m_voidTilemap.SetTile(new Vector3Int(-x + m_mapSize.x / 2, -y + m_mapSize.y / 2, 0), m_voidTiles[tileID]);
                 }
             }
         }
     }
 
+    // Creates random rooms on the map
     public void GenerateRooms()
     {
         // If rooms are provided
-        if (rooms != null)
+        if (m_rooms != null)
         {
             // Resets rooms and corridors each time
             ResetRooms();
@@ -168,7 +142,7 @@ public class MapGenerator : MonoBehaviour
             int totalSpawnedRooms = 0;
 
             // Loops until total room limit has been reached and fail safe has been triggered
-            while (totalSpawnedRooms < totalRoomLimit && roomFails < 30)
+            while (totalSpawnedRooms < m_totalRoomLimit && roomFails < 30)
             {
                 // If the fail safe in creating the room's position has been breached
                 if (fails > 50)
@@ -181,8 +155,8 @@ public class MapGenerator : MonoBehaviour
                 }
 
                 // Randomly picks a room from the given prefabs
-                int roomID = Random.Range(0, rooms.Length);
-                Room roomToSpawn = rooms[roomID];
+                int roomID = Random.Range(0, m_rooms.Length);
+                Room roomToSpawn = m_rooms[roomID];
 
                 // Find the rooms size within the tilemap
                 Vector3Int roomSize = roomToSpawn.gameObject.GetComponent<Tilemap>().size;
@@ -199,21 +173,21 @@ public class MapGenerator : MonoBehaviour
                     do
                     {
                         // Gets a random position within the maps boundaries using the rooms size. No room can be touching.
-                        xSpawnPos = Random.Range(((-mapSize.x / 2) + roomSize.x / 2) + 1, ((mapSize.x / 2) - roomSize.x / 2) + 1);
-                        ySpawnPos = Random.Range(((-mapSize.y / 2) + roomSize.y / 2) + 1, ((mapSize.y / 2) - roomSize.y / 2) + 1);
+                        xSpawnPos = Random.Range(((-m_mapSize.x / 2) + roomSize.x / 2) + 2, ((m_mapSize.x / 2) - roomSize.x / 2) - 2);
+                        ySpawnPos = Random.Range(((-m_mapSize.y / 2) + roomSize.y / 2) + 2, ((m_mapSize.y / 2) - roomSize.y / 2) - 2);
 
                         // If the object allows for rotation
                         if (roomToSpawn.m_enableRoomRot)
                         {
                             // Gets a random rotations to apply to the room. Only four rotations are allowed.
-                            int rot = Random.Range(0, roomRotAngles.Length);
-                            roomRot = roomRotAngles[rot];
+                            int rot = Random.Range(0, m_roomRotAngles.Length);
+                            roomRot = m_roomRotAngles[rot];
 
                             // If the object has been rotated 90 degrees, the objects position limits needs to be changed
                             if (roomRot == 90 || roomRot == 270)
                             {
-                                xSpawnPos = Random.Range(((-mapSize.x / 2) + roomSize.y / 2) + 1, ((mapSize.x / 2) - roomSize.y / 2) + 1);
-                                ySpawnPos = Random.Range(((-mapSize.y / 2) + roomSize.x / 2) + 1, ((mapSize.y / 2) - roomSize.x / 2) + 1);
+                                xSpawnPos = Random.Range(((-m_mapSize.x / 2) + roomSize.y / 2) + 2, ((m_mapSize.x / 2) - roomSize.y / 2) - 2);
+                                ySpawnPos = Random.Range(((-m_mapSize.y / 2) + roomSize.x / 2) + 2, ((m_mapSize.y / 2) - roomSize.x / 2) - 2);
                             }
                         }
 
@@ -222,7 +196,7 @@ public class MapGenerator : MonoBehaviour
 
                         // Checks for overlap with other objects within the room layer to determine if location is valid
                         int layerMask = 1 << 8;
-                        Collider2D[] overlapObj = Physics2D.OverlapBoxAll(roomPos, new Vector2Int(roomSize.x + roomMinDistance, roomSize.y + roomMinDistance), roomRot, layerMask);
+                        Collider2D[] overlapObj = Physics2D.OverlapBoxAll(roomPos, new Vector2Int(roomSize.x + m_roomMinDistance, roomSize.y + m_roomMinDistance), roomRot, layerMask);
 
                         // If no overlaps have been detected in the layermask
                         if (overlapObj.Length == 0)
@@ -246,7 +220,7 @@ public class MapGenerator : MonoBehaviour
                     {
                         // Creates instance of room using data generated above
                         GameObject room = Instantiate(roomToSpawn.gameObject, roomPos, Quaternion.Euler(0, 0, roomRot));
-                        room.transform.parent = dungeonGrid.transform;
+                        room.transform.parent = m_dungeonGrid.transform;
                         room.GetComponent<Room>().CreateColliders();
                         roomToSpawn.m_spawnedRooms++;
                         totalSpawnedRooms++;
@@ -256,10 +230,13 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
+    // ---- Corridor Functions ----
+
+    // Creates corridors between each room
     public void GenerateCorridors()
     {
         // Returns if no tile or tilemap is given
-        if (corridorTile == null && corridorTilemap == null)
+        if (m_corridorTile == null && m_corridorTilemap == null)
         {
             return;
         }
@@ -341,26 +318,11 @@ public class MapGenerator : MonoBehaviour
                 pointA = new Vector2((closestRoomMidPnt.x - closestRoomWidth / 2) + 1, (closestRoomMidPnt.y - closestRoomHeight / 2) + 1),
                 pointB = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 1, (closestRoomMidPnt.y - closestRoomHeight / 2) + 1)
             };
-            Line closestTopLine = new Line
-            {
-                pointA = new Vector2((closestRoomMidPnt.x - closestRoomWidth / 2) + 1, (closestRoomMidPnt.y + closestRoomHeight / 2) - 1),
-                pointB = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 1, (closestRoomMidPnt.y + closestRoomHeight / 2) - 1)
-            };
             Line closestLeftLine = new Line
             {
                 pointA = new Vector2((closestRoomMidPnt.x - closestRoomWidth / 2) + 1, (closestRoomMidPnt.y + closestRoomHeight / 2) - 1),
                 pointB = new Vector2((closestRoomMidPnt.x - closestRoomWidth / 2) + 1, (closestRoomMidPnt.y - closestRoomHeight / 2) + 1)
             };
-            Line closestRightLine = new Line
-            {
-                pointA = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 1, (closestRoomMidPnt.y + closestRoomHeight / 2) - 1),
-                pointB = new Vector2((closestRoomMidPnt.x + closestRoomWidth / 2) - 1, (closestRoomMidPnt.y - closestRoomHeight / 2) + 1)
-            };
-
-            Debug.DrawLine(closestBotLine.pointA, closestBotLine.pointB, Color.green, 3.0f);
-            Debug.DrawLine(closestTopLine.pointA, closestTopLine.pointB, Color.green, 3.0f);
-            Debug.DrawLine(closestLeftLine.pointA, closestLeftLine.pointB, Color.green, 3.0f);
-            Debug.DrawLine(closestRightLine.pointA, closestRightLine.pointB, Color.green, 3.0f);
 
             Vector3Int startRoomSize = startRoom.GetComponent<Tilemap>().size;
             int startRoomWidth = startRoomSize.x;
@@ -377,20 +339,10 @@ public class MapGenerator : MonoBehaviour
                 }
             }
 
-            Line startBotLine = new Line
-            {
-                pointA = new Vector2((startMidPnt.x - startRoomWidth / 2) + 1, (startMidPnt.y - startRoomHeight / 2) + 1),
-                pointB = new Vector2((startMidPnt.x + startRoomWidth / 2) - 1, (startMidPnt.y - startRoomHeight / 2) + 1)
-            };
             Line startTopLine = new Line
             {
                 pointA = new Vector2((startMidPnt.x - startRoomWidth / 2) + 1, (startMidPnt.y + startRoomHeight / 2) - 1),
                 pointB = new Vector2((startMidPnt.x + startRoomWidth / 2) - 1, (startMidPnt.y + startRoomHeight / 2) - 1)
-            };
-            Line startLeftLine = new Line
-            {
-                pointA = new Vector2((startMidPnt.x - startRoomWidth / 2) + 1, (startMidPnt.y + startRoomHeight / 2) - 1),
-                pointB = new Vector2((startMidPnt.x - startRoomWidth / 2) + 1, (startMidPnt.y - startRoomHeight / 2) + 1)
             };
             Line startRightLine = new Line
             {
@@ -398,17 +350,10 @@ public class MapGenerator : MonoBehaviour
                 pointB = new Vector2((startMidPnt.x + startRoomWidth / 2) - 1, (startMidPnt.y - startRoomHeight / 2) + 1)
             };
 
-            Debug.DrawLine(startBotLine.pointA, startBotLine.pointB, Color.yellow, 3.0f);
-            Debug.DrawLine(startTopLine.pointA, startTopLine.pointB, Color.yellow, 3.0f);
-            Debug.DrawLine(startLeftLine.pointA, startLeftLine.pointB, Color.yellow, 3.0f);
-            Debug.DrawLine(startRightLine.pointA, startRightLine.pointB, Color.yellow, 3.0f);
-
             // DETERMINE ROUTE
 
             // Calculate midpoint between each room's midpoints
             Vector2Int roomsMidPnt = new Vector2Int((startMidPnt.x + closestRoomMidPnt.x) / 2, (startMidPnt.y + closestRoomMidPnt.y) / 2);
-
-            Debug.DrawLine(closestRoomMidPnt, new Vector3(roomsMidPnt.x, roomsMidPnt.y, 0), Color.red, 3.0f);
 
             // Midpoint between rooms are closer vertically
             if (IsOnLine(startTopLine, new Vector2(roomsMidPnt.x, startTopLine.pointA.y)) &&
@@ -432,371 +377,120 @@ public class MapGenerator : MonoBehaviour
             connectedRooms.Add(closestRoom);
             startRoom = closestRoom;
         }
-
-        CleanUpCorridors();
     }
 
-    public static bool IsOnLine(Line line, Vector2 point)
+    // Checks whether a given point is on a line
+    private static bool IsOnLine(Line a_line, Vector2 a_point)
     {
-        if (line.pointA == point || line.pointB == point)
+        // If the point is either the start or end point of the line, return false
+        if (a_line.pointA == a_point || a_line.pointB == a_point)
         {
             return false;
         }
 
-        return Vector2.Distance(line.pointA, point) + Vector2.Distance(line.pointB, point) == Vector2.Distance(line.pointA, line.pointB);
+        return Vector2.Distance(a_line.pointA, a_point) + Vector2.Distance(a_line.pointB, a_point) == Vector2.Distance(a_line.pointA, a_line.pointB);
     }
 
-    public Vector3Int GetRandomOverlapPoint(Line startRoomLine, Line nextRoomLine)
-    {
-        Vector3Int newPoint = Vector3Int.zero;
-        bool isValidPoint = false;
-        bool isEdgeVertical = false;
+    // ---- Corridor Building Functions ----
 
-        if (startRoomLine.pointA.x == startRoomLine.pointB.x && nextRoomLine.pointA.x == nextRoomLine.pointB.x)
-        {
-            isEdgeVertical = true;
-        }
-
-        while (!isValidPoint)
-        {
-            // Pick a random point along the starting room's given edge
-            int xPos = Mathf.RoundToInt(Random.Range(startRoomLine.pointA.x, startRoomLine.pointB.x));
-            int yPos = Mathf.RoundToInt(Random.Range(startRoomLine.pointA.y, startRoomLine.pointB.y));
-            newPoint = new Vector3Int(xPos, yPos, 0);
-
-            if (isEdgeVertical)
-            {
-                // Once the point is picked check if in overlap range
-                if (IsOnLine(startRoomLine, new Vector2(startRoomLine.pointA.x, newPoint.y)))
-                {
-                    if (IsOnLine(nextRoomLine, new Vector2(nextRoomLine.pointA.x, newPoint.y)))
-                    {
-                        isValidPoint = true;
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                // Once the point is picked check if in overlap range
-                if (IsOnLine(startRoomLine, new Vector2(newPoint.x, startRoomLine.pointA.y)))
-                {
-                    if (IsOnLine(nextRoomLine, new Vector2(newPoint.x, nextRoomLine.pointA.y)))
-                    {
-                        isValidPoint = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        return newPoint;
-    }
-
-    public void BuildCorridorHorizontal(Vector2Int startPoint, Vector2Int endPoint)
+    // Creates a horizontal corridor going left or right
+    private void BuildCorridorHorizontal(Vector2Int a_startPoint, Vector2Int a_endPoint)
     {
         // Left
-        if (startPoint.x > endPoint.x)
+        if (a_startPoint.x > a_endPoint.x)
         {
-            for (int i = startPoint.x; i > endPoint.x - 1; i--)
+            for (int i = a_startPoint.x; i > a_endPoint.x - 1; i--)
             {
-                Vector3 cellPos = corridorTilemap.GetCellCenterWorld(new Vector3Int(i, startPoint.y, 0));
-                corridorTilemap.SetTile(new Vector3Int(i, startPoint.y, 0), corridorTile);
+                m_corridorTilemap.SetTile(new Vector3Int(i, a_startPoint.y, 0), m_corridorTile);
             }
         }
         // Right
-        else if (endPoint.x > startPoint.x)
+        else if (a_endPoint.x > a_startPoint.x)
         {
-            for (int i = startPoint.x; i < endPoint.x + 1; i++)
+            for (int i = a_startPoint.x; i < a_endPoint.x + 1; i++)
             {
-                corridorTilemap.SetTile(new Vector3Int(i, startPoint.y - 1, 0), corridorTile);
+                m_corridorTilemap.SetTile(new Vector3Int(i, a_startPoint.y, 0), m_corridorTile);
             }
         }
     }
 
-    public void BuildCorridorVertical(Vector2Int startPoint, Vector2Int endPoint)
+    // Creates a vertical corridor going up or down
+    private void BuildCorridorVertical(Vector2Int a_startPoint, Vector2Int a_endPoint)
     {
         // Down
-        if (startPoint.y > endPoint.y)
+        if (a_startPoint.y > a_endPoint.y)
         {
-            for (int i = startPoint.y; i > endPoint.y - 1; i--)
+            for (int i = a_startPoint.y; i > a_endPoint.y - 1; i--)
             {
-                corridorTilemap.SetTile(new Vector3Int(startPoint.x, i, 0), corridorTile);
+                m_corridorTilemap.SetTile(new Vector3Int(a_startPoint.x, i, 0), m_corridorTile);
             }
         }
         // Up
-        else if (endPoint.y > startPoint.y)
+        else if (a_endPoint.y > a_startPoint.y)
         {
-            for (int i = startPoint.y; i < endPoint.y + 1; i++)
+            for (int i = a_startPoint.y; i < a_endPoint.y + 1; i++)
             {
-                corridorTilemap.SetTile(new Vector3Int(startPoint.x - 1, i, 0), corridorTile);
+                m_corridorTilemap.SetTile(new Vector3Int(a_startPoint.x, i, 0), m_corridorTile);
             }
         }
     }
 
-    public void BuildCorridorLShape(Vector2Int startMidPnt, Vector2Int endMidPnt)
+    // Creates an L-shaped corridor
+    private void BuildCorridorLShape(Vector2Int a_startMidPnt, Vector2Int a_endMidPnt)
     {
         Vector2Int newStart = Vector2Int.zero;
 
         // Left
-        if (startMidPnt.x > endMidPnt.x)
+        if (a_startMidPnt.x > a_endMidPnt.x)
         {
-            for (int i = startMidPnt.x; i > endMidPnt.x - 1; i--)
+            for (int i = a_startMidPnt.x; i > a_endMidPnt.x - 1; i--)
             {
-                corridorTilemap.SetTile(new Vector3Int(i, startMidPnt.y, 0), corridorTile);
-                if (i == endMidPnt.x)
+                m_corridorTilemap.SetTile(new Vector3Int(i, a_startMidPnt.y, 0), m_corridorTile);
+                if (i == a_endMidPnt.x)
                 {
-                    newStart = new Vector2Int(endMidPnt.x, startMidPnt.y);
+                    newStart = new Vector2Int(a_endMidPnt.x, a_startMidPnt.y);
                 }
             }
         }
         // Right
-        else if (endMidPnt.x > startMidPnt.x)
+        else if (a_endMidPnt.x > a_startMidPnt.x)
         {
-            for (int i = startMidPnt.x; i < endMidPnt.x + 1; i++)
+            for (int i = a_startMidPnt.x; i < a_endMidPnt.x + 1; i++)
             {
-                corridorTilemap.SetTile(new Vector3Int(i, startMidPnt.y, 0), corridorTile);
-                if (i == endMidPnt.x)
+                m_corridorTilemap.SetTile(new Vector3Int(i, a_startMidPnt.y, 0), m_corridorTile);
+                if (i == a_endMidPnt.x)
                 {
-                    newStart = new Vector2Int(endMidPnt.x, startMidPnt.y);
+                    newStart = new Vector2Int(a_endMidPnt.x, a_startMidPnt.y);
                 }
             }
         }
 
         // Down
-        if (startMidPnt.y > endMidPnt.y)
+        if (a_startMidPnt.y > a_endMidPnt.y)
         {
-            for (int i = newStart.y; i > endMidPnt.y - 1; i--)
+            for (int i = newStart.y; i > a_endMidPnt.y - 1; i--)
             {
-                corridorTilemap.SetTile(new Vector3Int(newStart.x, i, 0), corridorTile);
+                m_corridorTilemap.SetTile(new Vector3Int(newStart.x, i, 0), m_corridorTile);
             }
         }
         // Up
-        else if (endMidPnt.y > startMidPnt.y)
+        else if (a_endMidPnt.y > a_startMidPnt.y)
         {
-            for (int i = newStart.y; i < endMidPnt.y + 1; i++)
+            for (int i = newStart.y; i < a_endMidPnt.y + 1; i++)
             {
-                corridorTilemap.SetTile(new Vector3Int(newStart.x, i, 0), corridorTile);
+                m_corridorTilemap.SetTile(new Vector3Int(newStart.x, i, 0), m_corridorTile);
             }
         }
     }
 
-    public void CleanUpCorridors()
-    {
-        if (corridorTilemap != null)
-        {
-            for (int x = 0; x < mapSize.x; x++)
-            {
-                for (int y = 0; y < mapSize.y; y++)
-                {
-                    Vector3Int tilePos = new Vector3Int(-x + mapSize.x / 2, -y + mapSize.y / 2, 0);
+    // ---- Reset Functions ----
 
-                    if (corridorTilemap.GetTile(tilePos) != null)
-                    {
-                        int layerMask = 1 << 8;
-                        RaycastHit2D hit = Physics2D.Linecast(new Vector2(tilePos.x + 0.5f, tilePos.y + 0.5f), new Vector2(tilePos.x + 0.5f, tilePos.y + 0.5f), layerMask);
-
-                        if (hit.collider != null)
-                        {
-                            corridorTilemap.SetTile(tilePos, null);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private List<Vector2> WallCollisionDirection(Tilemap tilemap, Vector2 tilePos)
-    {
-        List<Vector2> collisionDirections = new List<Vector2>();
-
-        foreach (Vector2Int dir in directions)
-        {
-            Vector2 pos = new Vector2(tilePos.x + dir.x, tilePos.y + dir.y);
-            Vector3Int next = new Vector3Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y), 0);
-            Tile nextTile = (Tile)tilemap.GetTile(next);
-
-            Node neighbour = new Node(nextTile, pos);
-
-            if (neighbour.m_position.x >= -mapSize.x / 2 + (dir.x < 0 ? 1f : 0) && neighbour.m_position.x <= mapSize.x / 2 - (dir.x < 0 ? 1f : 0))
-            {
-                if (neighbour.m_position.y <= mapSize.y / 2 - (dir.y < 0 ? 1f : 0) && neighbour.m_position.y >= -mapSize.y / 2 + (dir.y < 0 ? 1f : 0))
-                {
-                    int layerMask = 1 << 8;
-                    RaycastHit2D hit = Physics2D.Linecast(new Vector2(tilePos.x + 0.5f, tilePos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), layerMask);
-
-                    Debug.DrawLine(new Vector2(tilePos.x + 0.5f, tilePos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), Color.blue, 3.0f);
-
-                    if (hit.collider != null)
-                    {
-                        collisionDirections.Add(dir);
-                    }
-                }
-            }
-        }
-
-        return collisionDirections;
-    }
-
-    public void CheckForWall()
-    {
-        if (corridorTilemap == null)
-        {
-            return;
-        }
-
-        for (int x = 0; x < mapSize.x; x++)
-        {
-            for (int y = 0; y < mapSize.y; y++)
-            {
-                Vector3Int tilePos = new Vector3Int(-x + mapSize.x / 2, -y + mapSize.y / 2, 0);
-
-                if (corridorTilemap.GetTile(tilePos) == null)
-                {
-                    break;
-                }
-
-                CheckForWalls(tilePos);
-            }
-        }
-    }
-
-    private void CheckForWalls(Vector3Int tilePos)
-    {
-        foreach (Vector2Int dir in directions)
-        {
-            Vector2 pos = new Vector2(tilePos.x + dir.x, tilePos.y + dir.y);
-            Vector3Int next = new Vector3Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y), 0);
-            Tile nextTile = (Tile)corridorTilemap.GetTile(next);
-
-            Node neighbour = new Node(nextTile, pos);
-
-            if (neighbour.m_position.x >= -mapSize.x / 2 + (dir.x < 0 ? 1f : 0) && neighbour.m_position.x <= mapSize.x / 2 - (dir.x < 0 ? 1f : 0))
-            {
-                if (neighbour.m_position.y <= mapSize.y / 2 - (dir.y < 0 ? 1f : 0) && neighbour.m_position.y >= -mapSize.y / 2 + (dir.y < 0 ? 1f : 0))
-                {
-                    int layerMask = 1 << 8;
-                    RaycastHit2D hit = Physics2D.Linecast(new Vector2(tilePos.x + 0.5f, tilePos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), layerMask);
-
-                    if (hit.collider != null)
-                    {
-                        bool isCornerWall = CheckForCornerWall(neighbour.m_position, dir);
-
-                        if (isCornerWall)
-                        {
-                            corridorTilemap.SetTile(tilePos, buildTile);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private bool CheckForCornerWall(Vector2 tilePos, Vector2Int direction)
-    {
-        Vector2 pos = new Vector2(tilePos.x + direction.x, tilePos.y + direction.y);
-        Vector3Int next = new Vector3Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y), 0);
-        Tile nextTile = (Tile)corridorTilemap.GetTile(next);
-
-        Node neighbour = new Node(nextTile, pos);
-
-        if (neighbour.m_position.x >= -mapSize.x / 2 + (direction.x < 0 ? 1f : 0) && neighbour.m_position.x <= mapSize.x / 2 - (direction.x < 0 ? 1f : 0))
-        {
-            if (neighbour.m_position.y <= mapSize.y / 2 - (direction.y < 0 ? 1f : 0) && neighbour.m_position.y >= -mapSize.y / 2 + (direction.y < 0 ? 1f : 0))
-            {
-                int layerMask = 1 << 8;
-                RaycastHit2D hit = Physics2D.Linecast(new Vector2(tilePos.x + 0.5f, tilePos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), layerMask);
-
-                if (hit.collider != null)
-                {
-                    Room roomHit = hit.collider.gameObject.GetComponent<Room>();
-
-                    Vector3 roomTilePos = roomHit.GetComponent<Tilemap>().WorldToCell(next);
-                    Vector3Int roundedPos = new Vector3Int(Mathf.RoundToInt(roomTilePos.x), Mathf.RoundToInt(roomTilePos.y), 0);
-
-                    Debug.DrawLine(new Vector2(0, 0), new Vector2(roomTilePos.x + 0.5f, roomTilePos.y + 0.5f), Color.blue, 10.0f, false);
-
-                    if (roomHit.GetComponent<Tilemap>().GetTile(roundedPos) == roomWallTile)
-                    {
-                        roomHit.GetComponent<Tilemap>().SetTile(roundedPos, buildTile);
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private Node GetUnvisitedNeighbour(Tilemap tilemap, Vector2 originalPos, Vector2 direction)
-    {
-        Vector2 pos = new Vector2(originalPos.x + direction.x, originalPos.y + direction.y);
-        Vector3Int next = new Vector3Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y), 0);
-        Tile nextTile = (Tile)tilemap.GetTile(next);
-
-        Node neighbour = new Node(nextTile, pos);
-
-        if (neighbour.m_position.x >= -mapSize.x / 2 + (direction.x < 0 ? 1f : 0) && neighbour.m_position.x <= mapSize.x / 2 - (direction.x < 0 ? 1f : 0))
-        {
-            if (neighbour.m_position.y <= mapSize.y / 2 - (direction.y < 0 ? 1f : 0) && neighbour.m_position.y >= -mapSize.y / 2 + (direction.y < 0 ? 1f : 0))
-            {
-                int layerMask = 1 << 8;
-                RaycastHit2D hit = Physics2D.Linecast(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), layerMask);
-
-                //Debug.DrawLine(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), Color.green, 6.0f);
-
-                if (hit.collider == null)
-                {
-                    return neighbour;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private List<Vector2> GetValidDirections(Tilemap tilemap, Vector2 originalPos)
-    {
-        List<Vector2> validDirections = new List<Vector2>();
-
-        foreach (Vector2Int dir in directions)
-        {
-            Vector2 pos = new Vector2(originalPos.x + dir.x, originalPos.y + dir.y);
-            Vector3Int next = new Vector3Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y), 0);
-            Tile nextTile = (Tile)tilemap.GetTile(next);
-
-            Node neighbour = new Node(nextTile, pos);
-
-            if (neighbour.m_position.x >= -mapSize.x / 2 + (dir.x < 0 ? 1f : 0) && neighbour.m_position.x <= mapSize.x / 2 - (dir.x < 0 ? 1f : 0))
-            {
-                if (neighbour.m_position.y <= mapSize.y / 2 - (dir.y < 0 ? 1f : 0) && neighbour.m_position.y >= -mapSize.y / 2 + (dir.y < 0 ? 1f : 0))
-                {
-                    int layerMask = 1 << 8;
-                    RaycastHit2D hit = Physics2D.Linecast(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), layerMask);
-
-                    Debug.DrawLine(new Vector2(originalPos.x + 0.5f, originalPos.y + 0.5f), new Vector2(neighbour.m_position.x + 0.5f, neighbour.m_position.y + 0.5f), Color.blue, 3.0f);
-
-                    if (hit.collider == null)
-                    {
-                        validDirections.Add(dir);
-                    }
-                }
-            }
-        }
-
-        return validDirections;
-    }
-
-    public void GenerateDoors()
-    {
-        CheckForWall();
-    }
-
+    // Removes all the rooms from the grid
     private void ResetRooms()
     {
-        foreach (var room in dungeonGrid.GetComponentsInChildren<Room>())
+        foreach (var room in m_dungeonGrid.GetComponentsInChildren<Room>())
         {
-            foreach (Room prefabRooms in rooms)
+            foreach (Room prefabRooms in m_rooms)
             {
                 prefabRooms.m_spawnedRooms = 0;
             }
@@ -805,22 +499,25 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
+    // Removes all tiles on the void map
     private void ResetVoidMap()
     {
-        if (voidTilemap != null)
+        if (m_voidTilemap != null)
         {
-            voidTilemap.ClearAllTiles();
+            m_voidTilemap.ClearAllTiles();
         }
     }
 
+    // Removes all corridors on the corridor map
     private void ResetCorridors()
     {
-        if (corridorTilemap != null)
+        if (m_corridorTilemap != null)
         {
-            corridorTilemap.ClearAllTiles();
+            m_corridorTilemap.ClearAllTiles();
         }
     }
 
+    // Resets the grid entirely 
     public void ResetMap()
     {
         ResetVoidMap();
