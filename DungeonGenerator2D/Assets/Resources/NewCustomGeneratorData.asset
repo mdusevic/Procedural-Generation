@@ -16,5 +16,5 @@ MonoBehaviour:
   m_voidGenTriggered: 1
   m_roomGenTriggered: 1
   m_setupComplete: 1
-  m_mapLimits: {x: 80, y: 80}
+  m_mapLimits: {x: 100, y: 100}
   m_MapGenObjID: 1
